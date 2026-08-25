@@ -25,13 +25,20 @@ export function DocumentEditor({ id, label, initial, rows = 14, onSave, onSaved 
         id={id}
         rows={rows}
         value={value}
+        disabled={save.saving}
         onChange={(e) => setValue(e.target.value)}
       />
       <div className="settings-actions">
         <button
           type="button"
           disabled={!dirty || save.saving}
-          onClick={async () => { await save.run(value); onSaved(); }}
+          onClick={async () => {
+            // Only a successful save may trigger a refetch. Reloading on
+            // failure would clobber the just-rejected edit the user still
+            // needs to see and fix.
+            const ok = await save.run(value);
+            if (ok) onSaved();
+          }}
         >
           {save.saving ? 'Saving…' : `Save ${label}`}
         </button>

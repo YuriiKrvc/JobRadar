@@ -47,7 +47,8 @@ describe('SettingsPage CV section', () => {
     await waitFor(() => expect(saveCv).toHaveBeenCalledWith('existing cv more'));
   });
 
-  it('shows the server message and keeps the input on failure', async () => {
+  it('shows the server message, keeps the input, and does not refetch on failure', async () => {
+    const fetchSettings = vi.spyOn(api, 'fetchSettings').mockResolvedValue({ ...SETTINGS });
     vi.spyOn(api, 'saveCv').mockRejectedValue(new Error('cv: Required'));
     render(<SettingsPage />);
     await screen.findByDisplayValue('existing cv');
@@ -57,6 +58,36 @@ describe('SettingsPage CV section', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('cv: Required');
     expect(screen.getByLabelText(/^cv$/i)).toHaveValue('existing cv x');
+
+    // A failed save must not trigger a refetch: reloading on failure is exactly
+    // the path that could silently overwrite the user's rejected, unsaved edit.
+    expect(fetchSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('locks the textarea while saving, then reflects a refetch that differs from the local value', async () => {
+    const fetchSettings = vi.spyOn(api, 'fetchSettings')
+      .mockResolvedValueOnce({ ...SETTINGS })
+      .mockResolvedValueOnce({ ...SETTINGS, cv: 'server cv after concurrent edit' });
+
+    let resolveSave: (version: number) => void = () => {};
+    vi.spyOn(api, 'saveCv').mockImplementation(
+      () => new Promise((resolve) => { resolveSave = resolve; }),
+    );
+
+    render(<SettingsPage />);
+    await screen.findByDisplayValue('existing cv');
+
+    await userEvent.type(screen.getByLabelText(/^cv$/i), ' more');
+    await userEvent.click(screen.getByRole('button', { name: /save cv/i }));
+
+    // While the save is in flight, the textarea must be locked so further
+    // keystrokes cannot be silently clobbered by the post-save reload.
+    expect(screen.getByLabelText(/^cv$/i)).toBeDisabled();
+
+    resolveSave(4);
+
+    await waitFor(() => expect(fetchSettings).toHaveBeenCalledTimes(2));
+    expect(await screen.findByDisplayValue('server cv after concurrent edit')).toBeInTheDocument();
   });
 
   it('shows the current settings version', async () => {
