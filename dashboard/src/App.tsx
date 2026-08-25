@@ -16,19 +16,26 @@ export function App() {
 
   const postings = useApi(() => fetchPostings(filters), [filters]);
   const health = useApi(() => fetchHealth());
+  // Owned here, not inside SettingsPage: the stale-posting badge below needs
+  // the current version, so a save in Settings has to be visible on the
+  // Postings tab without a page reload. One fetch also serves both tabs.
   const settings = useApi(() => fetchSettings());
 
-  const incomplete = (health.data ?? []).some(
-    (h) => h.source === 'settings' && (h.error ?? '').includes('settings incomplete'),
+  // Any `settings` error row, not just "settings incomplete": a settings READ
+  // failure (unseeded or degraded database) also logs here, and it is the case
+  // where the user has the least other evidence of what is wrong.
+  const settingsError = (health.data ?? []).find(
+    (h) => h.source === 'settings' && h.status === 'error',
   );
 
   return (
     <>
       <h1>JobRadar</h1>
 
-      {incomplete && (
+      {settingsError && (
         <p className="banner" role="status">
-          JobRadar is not scoring yet — it needs a CV and at least one source.{' '}
+          JobRadar is not scoring yet —{' '}
+          {settingsError.error ?? 'the last run could not read its settings'}.{' '}
           <button type="button" onClick={() => setTab('settings')}>Finish setup</button>
         </p>
       )}
@@ -49,7 +56,7 @@ export function App() {
         ))}
       </nav>
 
-      {tab === 'settings' ? <SettingsPage /> : (
+      {tab === 'settings' ? <SettingsPage settings={settings} /> : (
         <>
           <Filters value={filters} onChange={setFilters} rows={postings.data ?? []} />
 

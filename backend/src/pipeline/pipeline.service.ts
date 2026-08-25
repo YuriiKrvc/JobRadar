@@ -63,7 +63,20 @@ export class PipelineService {
 
     // One read per tick: a run can never see settings change under it, and the
     // next tick picks up a dashboard edit with no restart.
-    const settings = await this.settings.load();
+    //
+    // A read failure — an unseeded database, a degraded connection — must reach
+    // run_log rather than only stderr: the health panel and the setup banner
+    // are the only places a user without `docker logs` can see why nothing is
+    // being scored.
+    let settings: AppSettings;
+    try {
+      settings = await this.settings.load();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log.error(`settings load failed: ${msg}`);
+      await this.repo.logRun('settings', 'error', 0, msg);
+      return s;
+    }
 
     const incomplete = incompleteReason(settings);
     if (incomplete) {

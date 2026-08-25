@@ -142,3 +142,76 @@ describe('first-run banner', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
+
+describe('settings load failure banner', () => {
+  // A settings READ failure (unseeded or degraded database) logs a `settings`
+  // error row whose message is not "settings incomplete". Before the fix the
+  // banner matched only that literal, so the one useful message was visible
+  // solely in `docker logs`.
+  it('banners a settings read failure, not just an incomplete config', async () => {
+    stubFetch({
+      health: [{
+        source: 'settings', status: 'error', ranAt: '2026-08-25T10:00:00.000Z',
+        error: 'app_settings is empty — run the seeder',
+      }],
+    });
+    render(<App />);
+
+    const banner = await screen.findByRole('status');
+    expect(banner).toHaveTextContent(/run the seeder/i);
+    expect(banner).toHaveTextContent(/finish setup/i);
+  });
+
+  it('ignores a settings row that is not an error', async () => {
+    stubFetch({
+      health: [{ source: 'settings', status: 'ok', ranAt: '2026-08-25T10:00:00.000Z', error: null }],
+    });
+    render(<App />);
+    await screen.findByRole('tab', { name: /postings/i });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * App owns the settings fetch so a save in the Settings tab is reflected by the
+ * Postings tab's stale badge. Held separately in SettingsPage, `currentVersion`
+ * stayed at its mount-time value and nothing was ever badged until F5.
+ */
+describe('stale badge after a save in Settings', () => {
+  it('reflects the new settings version without a page reload', async () => {
+    let version = 1;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const body = (() => {
+        if (url.startsWith('/api/postings')) return { postings: [posting] };
+        if (url.startsWith('/api/health')) return { sources: [] };
+        if (url.startsWith('/api/sources')) return { sources: [] };
+        if (url === '/api/settings/rubric' && init?.method === 'PUT') {
+          version = 2;
+          return { version };
+        }
+        return { ...SETTINGS_STUB, version };
+      })();
+      return new Response(JSON.stringify(body), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    // The posting is scored under version 1 and current is 1: no badge.
+    await screen.findByText('Senior Node Engineer');
+    expect(screen.queryByRole('img', { name: /stale/i })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: /settings/i }));
+    const growth = await screen.findByLabelText('growth');
+    await userEvent.clear(growth);
+    await userEvent.type(growth, '99');
+    await userEvent.click(screen.getByRole('button', { name: /save rubric/i }));
+    await waitFor(() => expect(screen.getByText(/version 2/i)).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('tab', { name: /postings/i }));
+    expect(await screen.findByRole('img', { name: /stale/i })).toBeInTheDocument();
+  });
+});
+

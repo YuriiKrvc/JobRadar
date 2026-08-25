@@ -11,6 +11,7 @@ interface Props {
 
 export function ChipInput({ id, label, value, onChange, suggestions, disabled }: Props) {
   const [draft, setDraft] = useState('');
+  const [hint, setHint] = useState<string | null>(null);
 
   function commit(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key !== 'Enter') return;
@@ -18,8 +19,18 @@ export function ChipInput({ id, label, value, onChange, suggestions, disabled }:
     e.preventDefault();
 
     const next = draft.trim();
+    if (next === '') return;
+
+    // Clear the field only on a successful add. Clearing first made a rejected
+    // duplicate look like a silent data loss: the text vanished, no chip
+    // appeared, and nothing said why.
+    if (value.includes(next)) {
+      setHint(`"${next}" is already in the list.`);
+      return;
+    }
+
+    setHint(null);
     setDraft('');
-    if (next === '' || value.includes(next)) return;
     onChange([...value, next]);
   }
 
@@ -41,9 +52,10 @@ export function ChipInput({ id, label, value, onChange, suggestions, disabled }:
         value={draft}
         placeholder="Type and press Enter"
         disabled={disabled}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => { setDraft(e.target.value); setHint(null); }}
         onKeyDown={commit}
       />
+      {hint && <p className="state" role="status">{hint}</p>}
       {suggestions && (
         <datalist id={`${id}-suggestions`}>
           {suggestions.map((s) => <option key={s} value={s} />)}

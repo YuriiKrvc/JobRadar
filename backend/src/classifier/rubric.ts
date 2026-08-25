@@ -16,8 +16,11 @@ export function weightedTotal(s: SubScores, w: RubricWeights): number {
     acc += s[key].score * w[key];
   }
   // Dividing by the actual sum rather than 100 is what lets a weight be raised
-  // without rebalancing the other four. RubricWeightsSchema and a CHECK
-  // constraint both guarantee sum > 0.
+  // without rebalancing the other four. sum > 0 is guaranteed by
+  // RubricWeightsSchema: `.strict()` with all five keys required and a refine
+  // for at least one above zero. The app_settings_weights_nonzero CHECK is a
+  // backstop only — a weights object missing a key makes it evaluate to NULL,
+  // which Postgres accepts.
   return Math.round(acc / sum);
 }
 

@@ -1,16 +1,28 @@
-import { useApi } from '../hooks/useApi';
-import { fetchSettings, saveCv } from '../api/settings';
+import type { ApiState } from '../hooks/useApi';
+import { saveCv } from '../api/settings';
+import type { SettingsResponse } from '../api/types';
 import { DocumentEditor } from './DocumentEditor';
 import { ProfileForm } from './ProfileForm';
 import { RubricEditor } from './RubricEditor';
 import { SourcesTable } from './SourcesTable';
 
-export function SettingsPage() {
-  const settings = useApi(() => fetchSettings());
+interface Props {
+  /**
+   * Owned by App so the Postings tab's stale badge sees a save immediately,
+   * and so a tab switch does not refetch. Passing the whole ApiState keeps
+   * `reload` bound to the same state the sections were seeded from.
+   */
+  settings: ApiState<SettingsResponse>;
+}
 
-  if (settings.loading) return <p className="state">Loading…</p>;
+export function SettingsPage({ settings }: Props) {
   if (settings.error) return <p className="state" role="alert">Error: {settings.error}</p>;
-  if (!settings.data) return null;
+
+  // Gate on `data`, not on `loading`. Every section's onSaved calls reload(),
+  // which sets loading = true; gating on it would unmount all four sections
+  // mid-edit and remount them from the server, silently discarding whatever
+  // the user had typed into the three they did not save.
+  if (!settings.data) return <p className="state">Loading…</p>;
 
   const s = settings.data;
 

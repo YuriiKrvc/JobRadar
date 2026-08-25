@@ -36,9 +36,6 @@ const DEFAULT_PROFILE = {
 };
 
 export async function seed(db: Database, configDir: string): Promise<SeedOutcome> {
-  const existing = await db.select({ id: appSettings.id }).from(appSettings).limit(1);
-  if (existing.length > 0) return 'already-present';
-
   // Probe for cv.md specifically rather than just the directory: Docker
   // creates an empty directory when a bind-mount source is missing on the
   // host (e.g. `config/` untracked and absent on a fresh clone), and an
@@ -47,27 +44,36 @@ export async function seed(db: Database, configDir: string): Promise<SeedOutcome
   // misconfiguration and should still fail loudly via loadConfig.
   const file: FileConfig | null = existsSync(join(configDir, 'cv.md')) ? loadConfig(configDir) : null;
 
-  await db.insert(appSettings).values({
-    cv: file?.cv ?? DEFAULT_CV,
-    rubricBody: file?.rubric.body ?? DEFAULT_RUBRIC,
-    // Weights never lived in rubric.md, so an upgrading install keeps exactly
-    // the scoring behaviour it had.
-    rubricWeights: DEFAULT_WEIGHTS,
-    profile: file?.profile ?? DEFAULT_PROFILE,
-  });
+  // The guard and both inserts are one transaction. Split, a settings insert
+  // that succeeded before a sources insert failed would leave every later run
+  // returning 'already-present' and exiting 0 forever, with an upgrading
+  // user's sources permanently lost behind a healthy-looking stack.
+  return db.transaction(async (tx): Promise<SeedOutcome> => {
+    const existing = await tx.select({ id: appSettings.id }).from(appSettings).limit(1);
+    if (existing.length > 0) return 'already-present';
 
-  if (file) {
-    const rows = [
-      ...file.sources.ats.map((a) => ({ kind: 'ats' as const, board: a.board, slug: a.slug })),
-      ...file.sources.djinni.map((url) => ({ kind: 'djinni' as const, url })),
-      ...file.sources.dou.map((url) => ({ kind: 'dou' as const, url })),
-    ];
-    if (rows.length > 0) {
-      await db.insert(sources).values(rows).onConflictDoNothing();
+    await tx.insert(appSettings).values({
+      cv: file?.cv ?? DEFAULT_CV,
+      rubricBody: file?.rubric.body ?? DEFAULT_RUBRIC,
+      // Weights never lived in rubric.md, so an upgrading install keeps exactly
+      // the scoring behaviour it had.
+      rubricWeights: DEFAULT_WEIGHTS,
+      profile: file?.profile ?? DEFAULT_PROFILE,
+    });
+
+    if (file) {
+      const rows = [
+        ...file.sources.ats.map((a) => ({ kind: 'ats' as const, board: a.board, slug: a.slug })),
+        ...file.sources.djinni.map((url) => ({ kind: 'djinni' as const, url })),
+        ...file.sources.dou.map((url) => ({ kind: 'dou' as const, url })),
+      ];
+      if (rows.length > 0) {
+        await tx.insert(sources).values(rows).onConflictDoNothing();
+      }
     }
-  }
 
-  return file ? 'seeded-from-files' : 'seeded-defaults';
+    return file ? 'seeded-from-files' : 'seeded-defaults';
+  });
 }
 
 // Entrypoint for the `migrate` compose service. Guarded so importing this

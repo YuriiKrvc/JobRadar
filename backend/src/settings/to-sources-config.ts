@@ -15,7 +15,10 @@ export function toSourcesConfig(rows: SourceRow[]): SourcesConfig {
     if (!r.enabled) continue;
 
     if (r.kind === 'ats') {
-      // The CHECK constraint guarantees both are present for ats rows.
+      // The CHECK constraint only guarantees both columns are NOT NULL for an
+      // ats row; it says nothing about which board. The narrow union comes
+      // from SourceInputSchema's Zod enum on the single write path
+      // (POST /api/sources) and from the importer's SourcesSchema.
       cfg.ats.push({ board: r.board as 'greenhouse' | 'lever' | 'ashby', slug: r.slug as string });
     } else {
       cfg[r.kind].push(r.url as string);

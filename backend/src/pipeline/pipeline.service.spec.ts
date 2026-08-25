@@ -61,6 +61,7 @@ const settings: AppSettings = {
 async function build(over: {
   sources?: JobSource[];
   settings?: AppSettings;
+  loadSettings?: () => Promise<AppSettings>;
   classify?: (p: RawPosting, s: AppSettings) => Promise<any>;
   notifier?: { channel: string; send: (i: any) => Promise<void> };
   repo?: ReturnType<typeof fakeRepo>;
@@ -77,7 +78,10 @@ async function build(over: {
       PipelineService,
       { provide: PostingsRepository, useValue: repo },
       { provide: ClassifierService, useValue: { classify } },
-      { provide: SettingsService, useValue: { load: async () => over.settings ?? settings } },
+      {
+        provide: SettingsService,
+        useValue: { load: over.loadSettings ?? (async () => over.settings ?? settings) },
+      },
       { provide: BUILD_SOURCES, useValue: () => sources },
       { provide: NotifyConfig, useValue: { thresholdFor: () => 50 } },
       { provide: NOTIFIER, useValue: over.notifier ?? { channel: 'telegram', send: async () => {} } },
@@ -204,5 +208,45 @@ describe('incomplete settings', () => {
     const { svc } = await build();
     const s = await svc.run();
     expect(s.fetched).toBe(1);
+  });
+});
+
+// The spec's Error handling section: "Settings read failure in the worker
+// writes a run_log row and returns." Without it the only trace of an unseeded
+// or degraded database is a stderr line, and the dashboard shows an empty
+// table with no banner and no health row.
+describe('settings read failure', () => {
+  it('writes a run_log row and returns a zero summary', async () => {
+    const repo = fakeRepo();
+    const { svc } = await build({
+      repo,
+      loadSettings: async () => { throw new Error('Run the seeder: app_settings is empty'); },
+    });
+
+    const s = await svc.run();
+
+    expect(s.fetched).toBe(0);
+    expect(s.classified).toBe(0);
+    expect(repo.runs).toEqual([{ source: 'settings', status: 'error' }]);
+    expect(repo.logRun).toHaveBeenCalledWith(
+      'settings', 'error', 0, expect.stringMatching(/Run the seeder/),
+    );
+  });
+
+  it('does not propagate the error to the caller', async () => {
+    const { svc } = await build({
+      loadSettings: async () => { throw new Error('connection refused'); },
+    });
+    await expect(svc.run()).resolves.toMatchObject({ fetched: 0 });
+  });
+
+  it('never builds sources or classifies when settings cannot be read', async () => {
+    const classify = jest.fn();
+    const { svc } = await build({
+      classify,
+      loadSettings: async () => { throw new Error('boom'); },
+    });
+    await svc.run();
+    expect(classify).not.toHaveBeenCalled();
   });
 });

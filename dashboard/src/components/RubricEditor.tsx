@@ -17,8 +17,17 @@ export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
   const [body, setBody] = useState(initialBody);
   const [weights, setWeights] = useState<RubricWeights>(initialWeights);
 
+  // `initialBody` is a string, so identity is value. `initialWeights` is an
+  // object rebuilt by every /api/settings fetch, so it must be compared by
+  // value — otherwise a save in a sibling section triggers a reload that
+  // silently resets unsaved weight edits here.
+  const initialWeightsKey = JSON.stringify(initialWeights);
+
   useEffect(() => { setBody(initialBody); }, [initialBody]);
-  useEffect(() => { setWeights(initialWeights); }, [initialWeights]);
+  useEffect(() => { setWeights(initialWeights); },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the
+    // serialised value on purpose; see above.
+    [initialWeightsKey]);
 
   const save = useSave<{ body: string; weights: RubricWeights }>(
     (v) => saveRubric(v.body, v.weights),
@@ -27,7 +36,7 @@ export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
   const sum = DIMENSIONS.reduce((a, k) => a + weights[k], 0);
   const allZero = sum === 0;
   const dirty = body !== initialBody
-    || JSON.stringify(weights) !== JSON.stringify(initialWeights);
+    || JSON.stringify(weights) !== initialWeightsKey;
 
   return (
     <section className="settings-section">
@@ -48,8 +57,10 @@ export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
         {DIMENSIONS.map((key) => (
           <div className="field weight" key={key}>
             <label htmlFor={`w-${key}`}>{key}</label>
+            {/* step={1} so the browser rejects 3.5 in the field rather than
+                letting RubricWeightsSchema.int() turn it into a 400. */}
             <input
-              id={`w-${key}`} type="number" min={0} max={1000}
+              id={`w-${key}`} type="number" min={0} max={1000} step={1}
               value={weights[key]}
               disabled={save.saving}
               onChange={(e) => setWeights((w) => ({

@@ -69,7 +69,12 @@ export const appSettings = pgTable('app_settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   check('app_settings_singleton', sql`${t.id}`),
-  // All-zero weights would divide by zero in weightedTotal and store NaN.
+  // A backstop against all-zero weights, which would divide by zero in
+  // weightedTotal and store NaN. It is only a backstop: if the JSON object is
+  // missing a key the `->>` yields NULL, the whole sum is NULL, and Postgres
+  // treats a NULL CHECK as satisfied. The real guarantee that all five keys
+  // are present is RubricWeightsSchema — `.strict()`, every key required, plus
+  // a refine for at least one above zero — on the write path.
   check('app_settings_weights_nonzero', sql`
     (${t.rubricWeights}->>'coreStack')::int + (${t.rubricWeights}->>'seniority')::int +
     (${t.rubricWeights}->>'domain')::int + (${t.rubricWeights}->>'logistics')::int +

@@ -132,15 +132,52 @@ describe('PUT /api/settings/profile', () => {
     await app.close();
   });
 
-  it('applies schema defaults for omitted fields', async () => {
+  it('saves a full profile that clears the list fields', async () => {
     const { app, repo } = await build();
-    await request(app.getHttpServer())
-      .put('/api/settings/profile').send({ timezone: 'Europe/Berlin' }).expect(200);
-
-    expect(repo.updateProfile).toHaveBeenCalledWith({
+    const next = {
       excludedLocations: [], allowedEmploymentTypes: [],
       minSalaryUsd: null, timezone: 'Europe/Berlin',
-    });
+    };
+    const res = await request(app.getHttpServer())
+      .put('/api/settings/profile').send(next).expect(200);
+
+    expect(repo.updateProfile).toHaveBeenCalledWith(next);
+    expect(res.body).toEqual({ version: 4 });
+    await app.close();
+  });
+
+  // The PUT replaces the whole document, so a partial body would silently wipe
+  // the omitted fields, bump the version, and invalidate every prior score.
+  // Defaults belong to the file importer, not to a user-facing write.
+  it('rejects a partial profile instead of defaulting the omitted fields', async () => {
+    const { app, repo } = await build();
+    const res = await request(app.getHttpServer())
+      .put('/api/settings/profile').send({ timezone: 'Europe/Berlin' }).expect(400);
+
+    expect(res.body.message).toMatch(/excludedLocations/);
+    expect(repo.updateProfile).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it.each([
+    ['excludedLocations'], ['allowedEmploymentTypes'], ['minSalaryUsd'], ['timezone'],
+  ])('rejects a profile missing %s', async (field) => {
+    const { app, repo } = await build();
+    const body: Record<string, unknown> = { ...PROFILE };
+    delete body[field];
+
+    const res = await request(app.getHttpServer())
+      .put('/api/settings/profile').send(body).expect(400);
+    expect(res.body.message).toMatch(new RegExp(field));
+    expect(repo.updateProfile).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it('rejects an unknown key, like the cv and rubric endpoints', async () => {
+    const { app, repo } = await build();
+    await request(app.getHttpServer())
+      .put('/api/settings/profile').send({ ...PROFILE, nope: 1 }).expect(400);
+    expect(repo.updateProfile).not.toHaveBeenCalled();
     await app.close();
   });
 

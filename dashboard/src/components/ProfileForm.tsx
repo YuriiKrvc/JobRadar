@@ -15,10 +15,19 @@ interface Props {
 
 export function ProfileForm({ initial, onSaved }: Props) {
   const [draft, setDraft] = useState<ProfileInput>(initial);
-  useEffect(() => { setDraft(initial); }, [initial]);
+
+  // Compare by VALUE, not identity: `initial` is a fresh object on every
+  // /api/settings fetch, so keying the re-seed on identity would reset this
+  // form whenever a sibling section saved and triggered a reload — throwing
+  // away an unsaved profile edit with no message.
+  const initialKey = JSON.stringify(initial);
+  useEffect(() => { setDraft(initial); },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the
+    // serialised value on purpose; see above.
+    [initialKey]);
 
   const save = useSave<ProfileInput>(saveProfile);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
+  const dirty = JSON.stringify(draft) !== initialKey;
 
   function set<K extends keyof ProfileInput>(key: K, value: ProfileInput[K]) {
     setDraft((d) => ({ ...d, [key]: value }));

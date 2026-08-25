@@ -2,7 +2,7 @@ import { Body, Controller, Get, Put } from '@nestjs/common';
 import { SettingsRepository } from './settings.repository';
 import { ZodValidationPipe } from '../api/zod-validation.pipe';
 import {
-  CvBodySchema, ProfileSchema, RubricBodySchema,
+  CvBodySchema, ProfileBodySchema, RubricBodySchema,
   type Profile, type RubricWeights,
 } from './schema';
 
@@ -42,7 +42,7 @@ export class SettingsController {
   }
 
   @Put('profile')
-  async putProfile(@Body(new ZodValidationPipe(ProfileSchema)) profile: Profile) {
+  async putProfile(@Body(new ZodValidationPipe(ProfileBodySchema)) profile: Profile) {
     await this.repo.updateProfile(profile);
     return { version: (await this.repo.readRow()).version };
   }

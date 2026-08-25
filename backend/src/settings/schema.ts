@@ -1,12 +1,35 @@
 import { z } from 'zod';
 
+// One definition of each field's validation, reused by both profile schemas
+// below so the lenient and the strict shape can never drift apart.
+const profileFields = {
+  excludedLocations: z.array(z.string()),
+  allowedEmploymentTypes: z.array(z.string()),
+  minSalaryUsd: z.number().int().positive().nullable(),
+  timezone: z.string(),
+};
+
+/**
+ * Lenient on purpose: the file importer parses a v1 `profile.yaml` that may
+ * legitimately omit keys, and relies on these defaults to fill them in. Never
+ * use this at an HTTP boundary — see ProfileBodySchema.
+ */
 export const ProfileSchema = z.object({
-  excludedLocations: z.array(z.string()).default([]),
-  allowedEmploymentTypes: z.array(z.string()).default([]),
-  minSalaryUsd: z.number().int().positive().nullable().default(null),
-  timezone: z.string().default('Europe/Kyiv'),
+  excludedLocations: profileFields.excludedLocations.default([]),
+  allowedEmploymentTypes: profileFields.allowedEmploymentTypes.default([]),
+  minSalaryUsd: profileFields.minSalaryUsd.default(null),
+  timezone: profileFields.timezone.default('Europe/Kyiv'),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
+
+/**
+ * The wire shape for PUT /api/settings/profile. Every field is required and
+ * unknown keys are rejected, matching the cv and rubric endpoints: the PUT
+ * replaces the whole profile document, so a body missing a field would reset
+ * that field, bump the settings version, and invalidate every prior score.
+ * Defaults belong to the importer, not to a user-facing write.
+ */
+export const ProfileBodySchema = z.object(profileFields).strict();
 
 export const SourcesSchema = z.object({
   ats: z.array(z.object({

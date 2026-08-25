@@ -32,11 +32,33 @@ describe('ChipInput', () => {
     expect(onChange).toHaveBeenCalledWith(['Berlin']);
   });
 
-  it('refuses a duplicate', async () => {
+  it('refuses a duplicate, keeps the typed text, and says why', async () => {
     const onChange = vi.fn();
     render(<ChipInput id="x" label="Excluded" value={['US']} onChange={onChange} />);
-    await userEvent.type(screen.getByLabelText('Excluded'), 'US{Enter}');
+    const input = screen.getByLabelText('Excluded');
+    await userEvent.type(input, 'US{Enter}');
+
     expect(onChange).not.toHaveBeenCalled();
+    // Clearing the field before the duplicate check made the rejection look
+    // like silent data loss: text gone, no chip, no explanation.
+    expect(input).toHaveValue('US');
+    expect(screen.getByRole('status')).toHaveTextContent(/already in the list/i);
+  });
+
+  it('drops the duplicate hint once the user edits the field again', async () => {
+    const onChange = vi.fn();
+    render(<ChipInput id="x" label="Excluded" value={['US']} onChange={onChange} />);
+    const input = screen.getByLabelText('Excluded');
+
+    await userEvent.type(input, 'US{Enter}');
+    expect(screen.getByRole('status')).toBeInTheDocument();
+
+    await userEvent.type(input, 'A');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    await userEvent.type(input, '{Enter}');
+    expect(onChange).toHaveBeenCalledWith(['US', 'USA']);
+    expect(input).toHaveValue('');
   });
 
   it('removes a chip', async () => {

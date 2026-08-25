@@ -45,9 +45,14 @@ export function PostingsTable({ rows, currentVersion }: Props) {
             <td><VerdictBadge verdict={r.verdict} /></td>
             <td>
               <a href={r.url} target="_blank" rel="noreferrer">{r.title}</a>
+              {/* `title` alone gives a screen reader nothing: the ⚠ glyph is
+                  announced as punctuation or skipped. role + aria-label make
+                  it a named image. */}
               {currentVersion !== null && Number(r.settingsVersion) !== currentVersion && (
                 <span
                   className="stale"
+                  role="img"
+                  aria-label={`Stale: scored under settings version ${r.settingsVersion}, current is ${currentVersion}`}
                   title={`Scored under settings version ${r.settingsVersion}; current is ${currentVersion}`}
                 >
                   ⚠

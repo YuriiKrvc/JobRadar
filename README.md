@@ -28,9 +28,39 @@ The dashboard opens on an empty Postings table with a "finish setup" prompt.
 Switch to **Settings**, paste your CV, set your hard constraints, and add at
 least one source. The next scheduled run picks them up.
 
-Upgrading from a file-configured install? Leave `config/` in place for the first
-`docker compose up` — the `migrate` service imports it into the database once,
-and never touches it again.
+### Upgrading from a file-configured install
+
+`config/` used to be tracked, and this release stops tracking it. `git pull`
+therefore refuses to run while your edited `config/cv.md` is still tracked and
+modified. Do **not** unblock it with `git checkout -- config/`: that would
+restore the shipped placeholder over your CV before `migrate` ever reads it, and
+the seeder would import the placeholder, report `seeded-from-files`, and exit 0
+with your real configuration gone.
+
+Back it up first, untrack it locally, then pull:
+
+```bash
+cp -a config ../jobradar-config-backup    # 1. keep a copy outside the repo
+git rm -r --cached config                 # 2. untrack, leaving the files on disk
+git commit -m "untrack config/"           # 3. so the pull has nothing to overwrite
+git pull
+```
+
+Your files stay on disk untouched, and `config/` is in `.gitignore` from here
+on. Then run the first `docker compose up -d --build`: the `migrate` service
+imports `config/` into the database once and never touches it again.
+
+**Verify before you delete the backup.** Open the dashboard's Settings tab, or:
+
+```bash
+curl -s localhost:8080/api/settings | head -c 400
+```
+
+Confirm you see your real CV, your excluded locations, and your salary floor —
+not the "Replace this with your CV" placeholder. Only then remove
+`../jobradar-config-backup`. If you see the placeholder, the import took the
+wrong files: restore the backup into `config/`, empty the database
+(`docker compose down -v`), and bring the stack up again.
 
 The first run backfills every currently-listed vacancy — expect roughly ten
 times a normal run's cost, once.

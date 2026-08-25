@@ -1,3 +1,4 @@
+import { RubricWeightsSchema } from '../settings/schema';
 import { DEFAULT_WEIGHTS, weightedTotal, toVerdict } from './rubric';
 import type { SubScores } from '../types';
 
@@ -13,8 +14,14 @@ function subs(v: Partial<Record<keyof SubScores, number>> = {}): SubScores {
 }
 
 describe('rubric', () => {
-  it('weights sum to 100', () => {
-    expect(Object.values(DEFAULT_WEIGHTS).reduce((a, b) => a + b, 0)).toBe(100);
+  // Not "they sum to 100": weightedTotal normalises by the actual sum, so that
+  // is an incidental property of the shipped defaults and rebalancing them
+  // would fail the assertion for no reason. What is load-bearing is that the
+  // defaults are a valid RubricWeights value — five keys, no extras, in range,
+  // at least one above zero — since they are inserted straight into
+  // app_settings by the seeder without passing through the HTTP boundary.
+  it('ships defaults that satisfy RubricWeightsSchema', () => {
+    expect(() => RubricWeightsSchema.parse(DEFAULT_WEIGHTS)).not.toThrow();
   });
 
   it('returns 100 when every dimension is perfect', () => {
