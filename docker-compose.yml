@@ -39,13 +39,42 @@ services:
     env_file: [.env]
     environment:
       PORT: "8080"
-      STATIC_ROOT: ""
+      STATIC_ROOT: "/app/public"
+    volumes:
+      - ./dashboard/dist:/app/public:ro
     ports: ["127.0.0.1:8080:8080"]
     command: ["node", "dist/main.js"]
     restart: unless-stopped
     depends_on:
       db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
+
+  worker-dev:
+    profiles: ["dev"]
+    build: { context: ., target: dev }
+    env_file: [.env]
+    environment:
+      CONFIG_DIR: /config
+    volumes:
+      - ./backend/src:/app/src:ro
+      - ./config:/config:ro
+    command: ["npx", "tsx", "watch", "src/worker.main.ts"]
+    depends_on:
+      db: { condition: service_healthy }
+
+  api-dev:
+    profiles: ["dev"]
+    build: { context: ., target: dev }
+    env_file: [.env]
+    environment:
+      PORT: "8080"
+      STATIC_ROOT: ""
+    ports: ["127.0.0.1:8080:8080"]
+    volumes:
+      - ./backend/src:/app/src:ro
+    command: ["npx", "tsx", "watch", "src/main.ts"]
+    depends_on:
+      db: { condition: service_healthy }
 
 volumes:
   pgdata:
