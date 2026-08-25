@@ -1,6 +1,7 @@
 import { useApi } from '../hooks/useApi';
 import { fetchSettings, saveCv } from '../api/settings';
 import { DocumentEditor } from './DocumentEditor';
+import { ProfileForm } from './ProfileForm';
 
 export function SettingsPage() {
   const settings = useApi(() => fetchSettings());
@@ -16,6 +17,8 @@ export function SettingsPage() {
       <p className="settings-version">
         Scoring settings version {s.version} — changes apply on the next run.
       </p>
+
+      <ProfileForm initial={s.profile} onSaved={settings.reload} />
 
       <DocumentEditor
         id="cv"
