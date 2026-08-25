@@ -10,38 +10,53 @@ Two independent projects in one repository:
 | `backend/`   | NestJS: pipeline, scheduled worker, REST API    |
 | `dashboard/` | Vite + React SPA consuming that API             |
 
-They share no source. `GET /api/postings` and `GET /api/health` are the entire
-contract. Docker Compose covers the **backend only** — the dashboard is built on
-the host and its `dist/` is bind-mounted into the API container, which serves it
-same-origin so there is no CORS layer and no second web server.
+They share no source and no deployment. `GET /api/postings` and `GET /api/health`
+are the entire contract. The backend builds and runs on its own from
+`backend/docker-compose.yml`; the dashboard is a static bundle deployed to a
+server of your choosing. Because they sit on different origins, the API must be
+told which origin to accept — see `CORS_ORIGIN` below.
 
 ## Quick start
 
-```bash
-cp .env.example .env && $EDITOR .env      # API key, Telegram bot token + chat id
-$EDITOR config/cv.md                       # your CV, in prose
-$EDITOR config/profile.yaml                # hard constraints
-$EDITOR config/sources.yaml                # boards to watch
+If `docker compose` reports `unknown command`, your Docker installs only the
+legacy standalone binary — substitute `docker-compose` in every command below.
 
-cd dashboard && npm ci && npm run build && cd ..
+```bash
+cd backend
+cp .env.example .env && $EDITOR .env   # API key, Telegram token + chat id, CORS_ORIGIN
+$EDITOR ../config/cv.md                # your CV, in prose
+$EDITOR ../config/profile.yaml         # hard constraints
+$EDITOR ../config/sources.yaml         # boards to watch
 docker compose up -d --build
-open http://localhost:8080
+curl localhost:8080/api/health
 ```
+
+The dashboard is a separate project with its own lifecycle:
+
+```bash
+cd dashboard && npm ci && npm run dev   # http://localhost:5173, proxies /api to :8080
+```
+
+To deploy it, `npm run build` and copy `dist/` to any static host, then set
+`CORS_ORIGIN` in `backend/.env` to that host's origin and
+`cd backend && docker compose restart api`. The API serves no static assets.
 
 The first run backfills every currently-listed vacancy — expect roughly ten
 times a normal run's cost, once.
 
-The API and dashboard have no authentication and bind to `127.0.0.1` only. Do
-not publish port 8080 without a reverse proxy providing TLS and auth.
+The API has no authentication and binds to `127.0.0.1` only. Do not publish
+port 8080 without a reverse proxy providing TLS and auth. The dashboard is a
+static bundle deployed wherever you choose — its exposure is your call, not
+this repository's.
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
-| `docker compose up -d` | db → migrations → worker + API |
-| `docker compose run --rm worker node dist/once.js` | One pipeline run, then exit |
-| `docker compose logs -f worker` | Follow scheduled runs |
-| `cd dashboard && npm run build` | Rebuild the SPA (required after any frontend change) |
+| `cd backend && docker compose up -d` | db → migrations → worker + API |
+| `cd backend && docker compose run --rm worker node dist/once.js` | One pipeline run, then exit |
+| `cd backend && docker compose logs -f worker` | Follow scheduled runs |
+| `cd dashboard && npm run build` | Build the SPA for deployment |
 | `cd backend && npm test` | Backend unit suite — Jest, no containers needed |
 | `cd backend && npm run test:integration` | Integration suite — Vitest; needs `DATABASE_URL_TEST` and/or `INTEGRATION=1` |
 | `cd dashboard && npm test` | Dashboard suite |
@@ -49,12 +64,13 @@ not publish port 8080 without a reverse proxy providing TLS and auth.
 ## Development
 
 ```bash
-docker compose --profile dev up -d db api-dev   # API on :8080, tsx watch
-cd dashboard && npm run dev                     # Vite on :5173, proxies /api
+cd backend && docker compose --profile dev up -d db api-dev   # API on :8080, tsc watch
+cd dashboard && npm run dev                                   # Vite on :5173, proxies /api
 ```
 
-Vite's proxy removes CORS in development; same-origin serving removes it in
-production.
+Vite's proxy makes development same-origin, so `CORS_ORIGIN` is never exercised
+locally — a working dev setup proves nothing about it. Production is
+cross-origin by construction and fails without it.
 
 ## REST API
 
@@ -70,7 +86,7 @@ duplication is the deliberate price of keeping the projects independent.
 
 ## Switching to a local model
 
-Set these in `.env` instead of `ANTHROPIC_API_KEY`:
+Set these in `backend/.env` instead of `ANTHROPIC_API_KEY`:
 
 ```
 LLM_BASE_URL=http://host.docker.internal:11434/v1
@@ -86,6 +102,6 @@ notify threshold is settable per provider via
 ## Tuning the rubric
 
 Edit `config/rubric.md`, bump its `version:` header, then
-`docker compose restart worker`. Old scores keep their old version so history
+`cd backend && docker compose restart worker`. Old scores keep their old version so history
 stays interpretable. Watch the near-miss band (scores 40–49, shown in red) — a
 cluster of good vacancies there means the rubric needs adjustment.
