@@ -999,7 +999,7 @@ The runtime cannot switch to the database until there is a row to read. This tas
 - Test: `backend/test/integration/seed.integration.test.ts`
 
 **Interfaces:**
-- Consumes: `SettingsRepository` (Task 4), `loadConfig` (Task 1), `appSettings`/`sources` tables (Task 3).
+- Consumes: `loadConfig` (Task 1), `appSettings`/`sources` tables (Task 3), `createDb`/`closeDb` from `src/db/client.ts`. Deliberately NOT `SettingsRepository` — the seeder runs as a bare script with no Nest container, so it queries Drizzle directly.
 - Produces: `DEFAULT_WEIGHTS: RubricWeights`; `seed(db, configDir): Promise<'seeded-from-files' | 'seeded-defaults' | 'already-present'>`.
 
 - [ ] **Step 1: Rename `WEIGHTS` to `DEFAULT_WEIGHTS`**
