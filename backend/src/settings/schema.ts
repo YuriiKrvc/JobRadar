@@ -32,6 +32,13 @@ export const RubricWeightsSchema = z
   });
 export type RubricWeights = z.infer<typeof RubricWeightsSchema>;
 
+export const CvBodySchema = z.object({ cv: z.string() }).strict();
+
+export const RubricBodySchema = z.object({
+  body: z.string(),
+  weights: RubricWeightsSchema,
+}).strict();
+
 export const SourceInputSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('ats'),
