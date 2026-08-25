@@ -86,13 +86,13 @@ Two new tables replace four files.
 CREATE TYPE source_kind AS ENUM ('ats', 'djinni', 'dou');
 
 app_settings                      -- singleton: exactly one row, enforced
-  id           boolean     PRIMARY KEY DEFAULT true CHECK (id)
+  id             boolean     PRIMARY KEY DEFAULT true CHECK (id)
   cv             text        NOT NULL
   rubric_body    text        NOT NULL
   rubric_weights jsonb       NOT NULL     -- $type<RubricWeights>()
   profile        jsonb       NOT NULL     -- $type<Profile>()
-  version      integer     NOT NULL DEFAULT 1
-  updated_at   timestamptz NOT NULL DEFAULT now()
+  version        integer     NOT NULL DEFAULT 1
+  updated_at     timestamptz NOT NULL DEFAULT now()
 
 sources
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid()
