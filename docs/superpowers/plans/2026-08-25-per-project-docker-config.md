@@ -60,7 +60,7 @@ array of origins **literally** against the request's `Origin` header, so
 `{ origin: ['*'] }` matches nothing and fails silently. A bare `*` must become
 `{ origin: true }`, which is how that package spells "any origin".
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `backend/src/cors.spec.ts`:
 
@@ -110,7 +110,7 @@ describe('corsConfigFrom', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm it fails**
+- [x] **Step 2: Run the test and confirm it fails**
 
 ```bash
 cd backend && npx jest src/cors.spec.ts
@@ -118,7 +118,7 @@ cd backend && npx jest src/cors.spec.ts
 
 Expected: failure resolving `./cors` — "Cannot find module './cors' from 'src/cors.spec.ts'".
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `backend/src/cors.ts`:
 
@@ -154,7 +154,7 @@ export function corsConfigFrom(raw: string | undefined): CorsConfig | undefined 
 }
 ```
 
-- [ ] **Step 4: Run the test and confirm it passes**
+- [x] **Step 4: Run the test and confirm it passes**
 
 ```bash
 cd backend && npx jest src/cors.spec.ts
@@ -162,7 +162,7 @@ cd backend && npx jest src/cors.spec.ts
 
 Expected: 7 passing tests.
 
-- [ ] **Step 5: Run the whole unit suite to confirm nothing regressed**
+- [x] **Step 5: Run the whole unit suite to confirm nothing regressed**
 
 ```bash
 cd backend && npm test
@@ -170,7 +170,7 @@ cd backend && npm test
 
 Expected: all suites pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/src/cors.ts backend/src/cors.spec.ts
@@ -201,7 +201,7 @@ mount in the root `docker-compose.yml`. The API ignores it from now on, so it is
 inert, and the file is about to move in Task 3 — editing it twice would create
 churn in a file whose every line is already changing. Do not flag it here.
 
-- [ ] **Step 1: Replace `backend/src/main.ts`**
+- [x] **Step 1: Replace `backend/src/main.ts`**
 
 The current file imports `ServeStaticModule`, computes `staticRoot` from the
 environment, and conditionally spreads the module into `imports`. All three go.
@@ -240,7 +240,7 @@ async function bootstrap(): Promise<void> {
 void bootstrap();
 ```
 
-- [ ] **Step 2: Remove the dependency**
+- [x] **Step 2: Remove the dependency**
 
 ```bash
 cd backend && npm uninstall @nestjs/serve-static
@@ -248,7 +248,7 @@ cd backend && npm uninstall @nestjs/serve-static
 
 This edits both `package.json` and `package-lock.json`. Do not hand-edit either.
 
-- [ ] **Step 3: Confirm no reference to static serving survives in the backend**
+- [x] **Step 3: Confirm no reference to static serving survives in the backend**
 
 ```bash
 cd backend && grep -rn "serve-static\|ServeStatic\|STATIC_ROOT" src package.json
@@ -256,7 +256,7 @@ cd backend && grep -rn "serve-static\|ServeStatic\|STATIC_ROOT" src package.json
 
 Expected: no output. A hit means Step 1 or Step 2 was incomplete.
 
-- [ ] **Step 4: Confirm the project still compiles**
+- [x] **Step 4: Confirm the project still compiles**
 
 ```bash
 cd backend && npm run build
@@ -265,7 +265,7 @@ cd backend && npm run build
 Expected: clean exit. A missing-module error for `@nestjs/serve-static` means
 an import survived Step 1.
 
-- [ ] **Step 5: Run the unit suite**
+- [x] **Step 5: Run the unit suite**
 
 ```bash
 cd backend && npm test
@@ -273,7 +273,7 @@ cd backend && npm test
 
 Expected: all suites pass, including `src/cors.spec.ts` from Task 1.
 
-- [ ] **Step 6: Add `CORS_ORIGIN` to `.env.example`**
+- [x] **Step 6: Add `CORS_ORIGIN` to `.env.example`**
 
 Append to the repository-root `.env.example` (Task 3 moves this file):
 
@@ -285,7 +285,7 @@ Append to the repository-root `.env.example` (Task 3 moves this file):
 CORS_ORIGIN=http://localhost:5173
 ```
 
-- [ ] **Step 7: Add the same line to your local `.env`**
+- [x] **Step 7: Add the same line to your local `.env`**
 
 `.env` is gitignored, so this is a local edit with no commit. Without it the
 deployed dashboard cannot reach the API.
@@ -294,7 +294,7 @@ deployed dashboard cannot reach the API.
 grep -q CORS_ORIGIN .env || printf '\nCORS_ORIGIN=http://localhost:5173\n' >> .env
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add backend/src/main.ts backend/package.json backend/package-lock.json .env.example
@@ -325,7 +325,7 @@ before the move is a precaution; do not skip them.
 - Produces: a `backend/` directory that builds and runs standalone. Task 4
   documents it.
 
-- [ ] **Step 1: Record the volume name before touching anything**
+- [x] **Step 1: Record the volume name before touching anything**
 
 ```bash
 docker volume ls | grep pgdata
@@ -335,7 +335,7 @@ Expected: `local     jobradar_pgdata`. Write this down. Step 9 compares against
 it. If the output is empty, no database exists yet and the risk does not apply —
 continue anyway.
 
-- [ ] **Step 2: Stop the stack cleanly from its current location**
+- [x] **Step 2: Stop the stack cleanly from its current location**
 
 ```bash
 cd /Users/ykravchenko/www/JobRadar && docker compose down
@@ -343,7 +343,7 @@ cd /Users/ykravchenko/www/JobRadar && docker compose down
 
 Plain `down`. **Not `down -v`** — that deletes `jobradar_pgdata`.
 
-- [ ] **Step 3: Confirm nothing outside the root references these files**
+- [x] **Step 3: Confirm nothing outside the root references these files**
 
 ```bash
 cd /Users/ykravchenko/www/JobRadar
@@ -356,7 +356,7 @@ Expected: no hits, or only hits inside files this plan already moves. A CI
 workflow or script referencing `-f docker-compose.yml` would need updating too;
 if one appears, stop and report it rather than guessing.
 
-- [ ] **Step 4: Move the four tracked files, preserving history**
+- [x] **Step 4: Move the four tracked files, preserving history**
 
 ```bash
 cd /Users/ykravchenko/www/JobRadar
@@ -366,7 +366,7 @@ git mv docker-compose.yml backend/docker-compose.yml
 git mv .env.example backend/.env.example
 ```
 
-- [ ] **Step 5: Move the untracked `.env`**
+- [x] **Step 5: Move the untracked `.env`**
 
 `.env` is gitignored, so `git mv` fails on it. Use a plain move. It stays
 ignored afterwards: `.gitignore`'s bare `.env` pattern is not anchored to a
@@ -376,7 +376,7 @@ directory and matches at any depth (verified with `git check-ignore -v backend/.
 cd /Users/ykravchenko/www/JobRadar && mv .env backend/.env
 ```
 
-- [ ] **Step 6: Rewrite `backend/Dockerfile`**
+- [x] **Step 6: Rewrite `backend/Dockerfile`**
 
 The build context is now `backend/`, so every `COPY backend/X` loses its
 prefix. `RUN mkdir -p public` also goes: it existed only to receive the
@@ -412,7 +412,7 @@ COPY . ./
 CMD ["npx", "tsx", "watch", "src/worker.main.ts"]
 ```
 
-- [ ] **Step 7: Rewrite `backend/.dockerignore`**
+- [x] **Step 7: Rewrite `backend/.dockerignore`**
 
 Paths are relative to the build context, which is now `backend/`. The `.git`,
 `docs` and `dashboard/tests` entries lie outside it and can no longer match, so
@@ -426,7 +426,7 @@ test
 coverage
 ```
 
-- [ ] **Step 8: Rewrite `backend/docker-compose.yml`**
+- [x] **Step 8: Rewrite `backend/docker-compose.yml`**
 
 Note the first line. Note that `context: .` is unchanged as text but now
 resolves to `backend/`. Write the file as:
@@ -526,7 +526,7 @@ Three deletions to verify against the old file: `STATIC_ROOT: "/app/public"` and
 the `./dashboard/dist:/app/public:ro` volume are gone from `api`, and
 `STATIC_ROOT: ""` is gone from `api-dev` (an unset variable already means "off").
 
-- [ ] **Step 9: Confirm the project name is pinned before bringing anything up**
+- [x] **Step 9: Confirm the project name is pinned before bringing anything up**
 
 ```bash
 cd /Users/ykravchenko/www/JobRadar/backend && docker compose config | head -3
@@ -536,7 +536,7 @@ Expected: the output includes `name: jobradar`. If it says `name: backend`,
 Step 8's first line is missing — **stop and fix it before running `up`**, or the
 database will be orphaned.
 
-- [ ] **Step 10: Confirm the mounts resolve**
+- [x] **Step 10: Confirm the mounts resolve**
 
 ```bash
 cd /Users/ykravchenko/www/JobRadar/backend && docker compose config | grep -A2 "source:"
@@ -546,7 +546,7 @@ Expected: the `config` bind resolves to the absolute path of the repository-root
 `config/` directory, and the dev `src` binds resolve to `backend/src`. No source
 path should contain `dashboard`.
 
-- [ ] **Step 11: Build in the new context**
+- [x] **Step 11: Build in the new context**
 
 ```bash
 cd /Users/ykravchenko/www/JobRadar/backend && docker compose build
@@ -555,7 +555,7 @@ cd /Users/ykravchenko/www/JobRadar/backend && docker compose build
 Expected: all stages succeed. A `COPY failed: file not found` here means a path
 in Step 6 still carries the `backend/` prefix.
 
-- [ ] **Step 12: Bring the stack up and confirm the database survived**
+- [x] **Step 12: Bring the stack up and confirm the database survived**
 
 ```bash
 cd /Users/ykravchenko/www/JobRadar/backend && docker compose up -d
@@ -565,7 +565,7 @@ docker volume ls | grep pgdata
 Expected: `jobradar_pgdata` and nothing named `backend_pgdata`. This is the
 check the whole task is built around — compare against Step 1's output.
 
-- [ ] **Step 13: Confirm the API answers and serves no static assets**
+- [x] **Step 13: Confirm the API answers and serves no static assets**
 
 ```bash
 curl -s localhost:8080/healthz; echo
@@ -576,7 +576,7 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:8080/
 Expected: the first two return data; the third prints `404`. A `200` on the last
 means static serving is still wired somewhere.
 
-- [ ] **Step 14: Confirm CORS behaves both ways**
+- [x] **Step 14: Confirm CORS behaves both ways**
 
 With `CORS_ORIGIN=http://localhost:5173` in `backend/.env` (added in Task 2):
 
@@ -604,7 +604,7 @@ Expected: no output — no `Access-Control-*` headers at all. Then restore:
 mv .env.bak .env && docker compose up -d --force-recreate api
 ```
 
-- [ ] **Step 15: Confirm neither project references the other**
+- [x] **Step 15: Confirm neither project references the other**
 
 Both halves of the acceptance criterion, in order:
 
@@ -622,7 +622,7 @@ this should already hold — run it anyway. If it does not hold, the frontend ha
 a coupling to the backend that this plan did not know about, and that is worth
 stopping to report rather than working around.
 
-- [ ] **Step 16: Commit**
+- [x] **Step 16: Commit**
 
 ```bash
 cd /Users/ykravchenko/www/JobRadar
@@ -660,7 +660,7 @@ rather than guessing which files mention it.
 - Consumes: the finished arrangement from Tasks 1-3.
 - Produces: nothing consumed by later tasks. This is the final task.
 
-- [ ] **Step 1: Find every stale claim**
+- [x] **Step 1: Find every stale claim**
 
 ```bash
 cd /Users/ykravchenko/www/JobRadar
@@ -669,7 +669,7 @@ grep -rn "STATIC_ROOT\|serve-static\|ServeStatic\|dashboard/dist\|same-origin\|n
 
 Keep this list. Step 6 re-runs it as the completion check.
 
-- [ ] **Step 2: Rewrite the `README.md` intro paragraph**
+- [x] **Step 2: Rewrite the `README.md` intro paragraph**
 
 Replace the paragraph beginning "They share no source." with:
 
@@ -681,7 +681,7 @@ server of your choosing. Because they sit on different origins, the API must be
 told which origin to accept — see `CORS_ORIGIN` below.
 ```
 
-- [ ] **Step 3: Rewrite the `README.md` quick start**
+- [x] **Step 3: Rewrite the `README.md` quick start**
 
 Replace the existing fenced block and the `open http://localhost:8080` line with:
 
@@ -707,7 +707,7 @@ To deploy it, `npm run build` and copy `dist/` to any static host, then set
 `cd backend && docker compose restart api`. The API serves no static assets.
 ````
 
-- [ ] **Step 4: Update the `README.md` commands table and Development section**
+- [x] **Step 4: Update the `README.md` commands table and Development section**
 
 Every `docker compose` row gains a `cd backend &&` prefix:
 
@@ -739,7 +739,7 @@ locally — a working dev setup proves nothing about it. Production is
 cross-origin by construction and fails without it.
 ````
 
-- [ ] **Step 5: Update the remaining two `README.md` sections**
+- [x] **Step 5: Update the remaining two `README.md` sections**
 
 In "Switching to a local model", change "Set these in `.env`" to "Set these in
 `backend/.env`".
@@ -747,13 +747,13 @@ In "Switching to a local model", change "Set these in `.env`" to "Set these in
 In "Tuning the rubric", change `docker compose restart worker` to
 `cd backend && docker compose restart worker`.
 
-- [ ] **Step 6: Verify no stale claim survives in `README.md`**
+- [x] **Step 6: Verify no stale claim survives in `README.md`**
 
 Re-run Step 1's grep. Every remaining hit must describe the new arrangement.
 Expected: no hit mentions `STATIC_ROOT`, `serve-static`, or `dashboard/dist`,
 and no bare `docker compose` command lacks a `cd backend` prefix.
 
-- [ ] **Step 7: Rewrite the `CLAUDE.md` `dashboard/` section**
+- [x] **Step 7: Rewrite the `CLAUDE.md` `dashboard/` section**
 
 Replace the sentence beginning "In dev, Vite proxies `/api` to" through "before
 `docker compose up`." with:
@@ -769,7 +769,7 @@ no static assets; `ServeStaticModule` and `STATIC_ROOT` were removed when the
 projects were split.
 ```
 
-- [ ] **Step 8: Rewrite the `CLAUDE.md` Docker section**
+- [x] **Step 8: Rewrite the `CLAUDE.md` Docker section**
 
 Replace it with:
 
@@ -797,7 +797,7 @@ hand-edited operational input, not backend source.
 Also update the config paragraph a few lines above: `CONFIG_DIR` is
 "bind-mounted read-only from `./config`" → "from `../config`".
 
-- [ ] **Step 9: Write the feature doc**
+- [x] **Step 9: Write the feature doc**
 
 `CLAUDE.md` requires one per feature. Create
 `docs/features/per-project-docker-config.md` — the first file in that directory:
@@ -883,7 +883,7 @@ curl -si -X OPTIONS localhost:8080/api/postings \
 ```
 ```
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 cd /Users/ykravchenko/www/JobRadar
