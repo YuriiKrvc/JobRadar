@@ -35,6 +35,7 @@ export class DashboardQueries {
       verdict: scores.verdict,
       reasoning: scores.reasoning,
       providerId: scores.providerId,
+      settingsVersion: scores.settingsVersion,
       scoredAt: scores.scoredAt,
     })
       .from(latest)

@@ -12,6 +12,7 @@ export interface PostingRow {
   reasoning: string;
   providerId: string;
   scoredAt: string;
+  settingsVersion: string;
 }
 
 export interface HealthRow {
