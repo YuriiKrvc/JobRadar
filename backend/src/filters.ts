@@ -1,5 +1,5 @@
 import type { RawPosting } from './types';
-import type { Profile } from './config/schema';
+import type { Profile } from './settings/schema';
 
 export type FilterResult = { passed: true } | { passed: false; rule: string };
 

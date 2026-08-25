@@ -1,4 +1,4 @@
-import type { SourcesConfig } from '../config/schema';
+import type { SourcesConfig } from '../settings/schema';
 import type { JobSource } from '../types';
 import { createAtsSource } from './ats';
 import { createDjinniSource } from './djinni';

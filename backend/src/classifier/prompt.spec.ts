@@ -1,6 +1,6 @@
 import { buildPrompt } from './prompt';
 import type { RawPosting } from '../types';
-import type { Profile, Rubric } from '../config/schema';
+import type { Profile, Rubric } from '../settings/schema';
 
 const profile: Profile = {
   excludedLocations: ['Onsite: USA'],
@@ -8,7 +8,11 @@ const profile: Profile = {
   minSalaryUsd: 4000,
   timezone: 'Europe/Kyiv',
 };
-const rubric: Rubric = { version: '1', body: 'score five dimensions' };
+const rubric: Rubric = {
+  version: '1',
+  body: 'score five dimensions',
+  weights: { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10 },
+};
 const posting: RawPosting = {
   id: 'x:1', source: 'x', externalId: '1', url: 'https://e.com/1',
   title: 'Node Engineer', company: 'Acme', location: 'Remote',

@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { loadConfig } from './load';
-import type { AppConfig, Profile, Rubric, SourcesConfig } from './schema';
+import { loadConfig } from '../settings/import';
+import type { FileConfig, Profile, SourcesConfig } from '../settings/schema';
 
 @Injectable()
 export class AppConfigService {
-  private readonly cfg: AppConfig;
+  private readonly cfg: FileConfig;
 
   constructor() {
     this.cfg = loadConfig(process.env.CONFIG_DIR ?? '/config');
@@ -12,7 +12,7 @@ export class AppConfigService {
 
   get cv(): string { return this.cfg.cv; }
   get profile(): Profile { return this.cfg.profile; }
-  get rubric(): Rubric { return this.cfg.rubric; }
+  get rubric(): FileConfig['rubric'] { return this.cfg.rubric; }
   get sources(): SourcesConfig { return this.cfg.sources; }
 
   /**

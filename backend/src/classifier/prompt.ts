@@ -1,10 +1,12 @@
 import type { RawPosting } from '../types';
-import type { Profile, Rubric } from '../config/schema';
+import type { Profile, Rubric } from '../settings/schema';
 
 export interface PromptArgs {
   cv: string;
   profile: Profile;
-  rubric: Rubric;
+  // Only `body` is rendered into the prompt, so accept anything with that
+  // shape — the file-backed AppConfigService has no weights to offer yet.
+  rubric: Pick<Rubric, 'body'>;
   posting: RawPosting;
 }
 

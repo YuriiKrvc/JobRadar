@@ -1,7 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadConfig } from './load';
+import { loadConfig } from './import';
 
 function fixtureDir(): string {
   const dir = mkdtempSync(join(tmpdir(), 'jobradar-'));

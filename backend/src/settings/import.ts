@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { ProfileSchema, SourcesSchema, type AppConfig, type Rubric } from './schema';
+import { ProfileSchema, SourcesSchema, type FileConfig } from './schema';
 
 function read(dir: string, name: string): string {
   const path = join(dir, name);
@@ -11,7 +11,7 @@ function read(dir: string, name: string): string {
   return readFileSync(path, 'utf8');
 }
 
-function parseRubric(text: string): Rubric {
+function parseRubric(text: string): FileConfig['rubric'] {
   const match = /^version:\s*(\S+)\s*$/m.exec(text);
   if (!match?.[1]) {
     throw new Error('rubric.md must start with a "version: <id>" header line');
@@ -19,7 +19,7 @@ function parseRubric(text: string): Rubric {
   return { version: match[1], body: text };
 }
 
-export function loadConfig(dir: string): AppConfig {
+export function loadConfig(dir: string): FileConfig {
   return {
     cv: read(dir, 'cv.md'),
     rubric: parseRubric(read(dir, 'rubric.md')),
