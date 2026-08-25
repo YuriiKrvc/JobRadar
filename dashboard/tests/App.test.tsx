@@ -19,6 +19,16 @@ function mockFetch(handler: (url: string) => { body: unknown; status?: number })
   });
 }
 
+const SETTINGS_STUB = {
+  cv: '', rubricBody: '', rubricWeights: {
+    coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10,
+  },
+  profile: {
+    excludedLocations: [], allowedEmploymentTypes: [], minSalaryUsd: null, timezone: 'Europe/Kyiv',
+  },
+  version: 1, updatedAt: '2026-08-25T10:00:00.000Z',
+};
+
 beforeEach(() => { vi.restoreAllMocks(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -58,5 +68,31 @@ describe('App', () => {
         : { body: { sources: [{ source: 'djinni', status: 'error', ranAt: '2026-08-25T10:00:00.000Z', error: 'selector miss' }] } }));
     render(<App />);
     await waitFor(() => expect(screen.getByText(/selector miss/)).toBeInTheDocument());
+  });
+});
+
+describe('tab navigation', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch((url) => {
+      if (url.startsWith('/api/postings')) return { body: { postings: [posting] } };
+      if (url.startsWith('/api/settings')) return { body: SETTINGS_STUB };
+      if (url.startsWith('/api/sources')) return { body: { sources: [] } };
+      return { body: { sources: [] } };
+    }));
+  });
+
+  it('shows postings first', async () => {
+    render(<App />);
+    expect(screen.getByRole('tab', { name: /postings/i })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('switches to settings and back', async () => {
+    render(<App />);
+
+    await userEvent.click(screen.getByRole('tab', { name: /settings/i }));
+    expect(screen.getByRole('tab', { name: /settings/i })).toHaveAttribute('aria-selected', 'true');
+
+    await userEvent.click(screen.getByRole('tab', { name: /postings/i }));
+    expect(screen.getByRole('tab', { name: /postings/i })).toHaveAttribute('aria-selected', 'true');
   });
 });
