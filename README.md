@@ -15,18 +15,22 @@ contract. Docker Compose covers the **backend only** — the dashboard is built 
 the host and its `dist/` is bind-mounted into the API container, which serves it
 same-origin so there is no CORS layer and no second web server.
 
-## Quick start
+## First run
 
-```bash
-cp .env.example .env && $EDITOR .env      # API key, Telegram bot token + chat id
-$EDITOR config/cv.md                       # your CV, in prose
-$EDITOR config/profile.yaml                # hard constraints
-$EDITOR config/sources.yaml                # boards to watch
-
+```
+cp .env.example .env && $EDITOR .env    # API keys and Telegram credentials
 cd dashboard && npm ci && npm run build && cd ..
 docker compose up -d --build
 open http://localhost:8080
 ```
+
+The dashboard opens on an empty Postings table with a "finish setup" prompt.
+Switch to **Settings**, paste your CV, set your hard constraints, and add at
+least one source. The next scheduled run picks them up.
+
+Upgrading from a file-configured install? Leave `config/` in place for the first
+`docker compose up` — the `migrate` service imports it into the database once,
+and never touches it again.
 
 The first run backfills every currently-listed vacancy — expect roughly ten
 times a normal run's cost, once.
@@ -85,7 +89,16 @@ notify threshold is settable per provider via
 
 ## Tuning the rubric
 
-Edit `config/rubric.md`, bump its `version:` header, then
-`docker compose restart worker`. Old scores keep their old version so history
-stays interpretable. Watch the near-miss band (scores 40–49, shown in red) — a
-cluster of good vacancies there means the rubric needs adjustment.
+Open the dashboard, switch to the **Settings** tab, and edit the rubric prose or
+the five dimension weights. Saving bumps the settings version, which is stored
+with every score written afterwards, so old scores stay interpretable and the
+postings table marks any row scored under an older version.
+
+Weights do not need to sum to 100 — each one is normalised by the actual total,
+and the percentage shown beside it is what the score uses. Raising `coreStack`
+from 35 to 70 doubles its influence without touching the other four.
+
+Changes take effect on the next scheduled run (every 30 minutes). No restart.
+
+Watch the near-miss band (scores 40–49, shown in red) — a cluster of good
+vacancies there means the rubric needs adjustment.

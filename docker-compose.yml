@@ -33,9 +33,6 @@ services:
   worker:
     build: { context: ., target: runtime }
     env_file: [.env]
-    environment:
-      CONFIG_DIR: /config
-    volumes: ["./config:/config:ro"]
     command: ["node", "dist/worker.main.js"]
     restart: unless-stopped
     depends_on:
@@ -61,11 +58,8 @@ services:
     profiles: ["dev"]
     build: { context: ., target: dev }
     env_file: [.env]
-    environment:
-      CONFIG_DIR: /config
     volumes:
       - ./backend/src:/app/src:ro
-      - ./config:/config:ro
     # tsc, not tsx: esbuild drops design:paramtypes, which breaks Nest's
     # constructor-type injection. tsc honours emitDecoratorMetadata.
     command: ["sh", "-c", "npx tsc -p tsconfig.build.json --watch --preserveWatchOutput & until [ -f dist/worker.main.js ]; do sleep 1; done; exec node --watch dist/worker.main.js"]
