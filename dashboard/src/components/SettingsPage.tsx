@@ -2,6 +2,7 @@ import { useApi } from '../hooks/useApi';
 import { fetchSettings, saveCv } from '../api/settings';
 import { DocumentEditor } from './DocumentEditor';
 import { ProfileForm } from './ProfileForm';
+import { SourcesTable } from './SourcesTable';
 
 export function SettingsPage() {
   const settings = useApi(() => fetchSettings());
@@ -19,6 +20,8 @@ export function SettingsPage() {
       </p>
 
       <ProfileForm initial={s.profile} onSaved={settings.reload} />
+
+      <SourcesTable />
 
       <DocumentEditor
         id="cv"
