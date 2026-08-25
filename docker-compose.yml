@@ -34,5 +34,18 @@ services:
       db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
 
+  api:
+    build: { context: ., target: runtime }
+    env_file: [.env]
+    environment:
+      PORT: "8080"
+      STATIC_ROOT: ""
+    ports: ["127.0.0.1:8080:8080"]
+    command: ["node", "dist/main.js"]
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
 volumes:
   pgdata:
