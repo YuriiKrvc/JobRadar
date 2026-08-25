@@ -5,7 +5,9 @@ services:
       POSTGRES_USER: jobradar
       POSTGRES_PASSWORD: jobradar
       POSTGRES_DB: jobradar
-    ports: ["5432:5432"]
+    # Host port 5433: 5432 is commonly taken by another local Postgres.
+    # In-network clients still use db:5432 (see DATABASE_URL in .env).
+    ports: ["5433:5432"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U jobradar"]

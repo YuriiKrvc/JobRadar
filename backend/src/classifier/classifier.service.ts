@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppConfigService } from '../config/app-config.service';
-import { LLM_PROVIDER } from './classifier.module';
-import type { LLMProvider } from './providers/types';
+import { LLM_PROVIDER, type LLMProvider } from './providers/types';
 import { RawVerdictSchema, VERDICT_JSON_SCHEMA, type RawVerdict } from './schema';
 import { buildPrompt } from './prompt';
 import { toVerdict, weightedTotal } from './rubric';

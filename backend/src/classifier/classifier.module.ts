@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { ClassifierService } from './classifier.service';
 import { createAnthropicProvider } from './providers/anthropic';
 import { createOpenAiCompatProvider } from './providers/openai-compat';
-import type { LLMProvider } from './providers/types';
+import { LLM_PROVIDER, type LLMProvider } from './providers/types';
 
-export const LLM_PROVIDER = Symbol('LLM_PROVIDER');
+// Re-exported for callers that already import the token from this module.
+export { LLM_PROVIDER };
 
 export function selectProvider(env: NodeJS.ProcessEnv): LLMProvider {
   if (env.LLM_BASE_URL) {

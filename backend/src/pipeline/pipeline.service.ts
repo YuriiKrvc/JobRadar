@@ -4,8 +4,7 @@ import { ClassifierService } from '../classifier/classifier.service';
 import { AppConfigService } from '../config/app-config.service';
 import { SOURCES } from '../sources/sources.module';
 import { NOTIFIER, type Notifier } from '../notify/types';
-import { LLM_PROVIDER } from '../classifier/classifier.module';
-import type { LLMProvider } from '../classifier/providers/types';
+import { LLM_PROVIDER, type LLMProvider } from '../classifier/providers/types';
 import { applyHardFilters } from '../filters';
 import type { JobSource, RawPosting } from '../types';
 
