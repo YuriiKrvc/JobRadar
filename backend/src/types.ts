@@ -32,3 +32,12 @@ export interface JobSource {
 }
 
 export type FetchFn = (url: string) => Promise<Response>;
+
+export interface FitVerdict {
+  total: number;
+  verdict: Verdict;
+  subscores: SubScores;
+  reasoning: string;
+  providerId: string;
+  rubricVersion: string;
+}
