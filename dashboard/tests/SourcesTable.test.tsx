@@ -106,6 +106,27 @@ describe('SourcesTable', () => {
     expect(screen.getByLabelText(/slug/i)).toHaveValue('acme');
   });
 
+  it('disables the add form fields while an add is pending', async () => {
+    let resolveAdd!: (value: SourceRow) => void;
+    const pending = new Promise<SourceRow>((resolve) => { resolveAdd = resolve; });
+    vi.spyOn(api, 'addSource').mockReturnValue(pending);
+
+    render(<SourcesTable />);
+    await screen.findByText('greenhouse:acme');
+
+    await userEvent.type(screen.getByLabelText(/slug/i), 'globex');
+    await userEvent.click(screen.getByRole('button', { name: /add source/i }));
+
+    await waitFor(() => expect(screen.getByLabelText(/kind/i)).toBeDisabled());
+    expect(screen.getByLabelText(/board/i)).toBeDisabled();
+    expect(screen.getByLabelText(/slug/i)).toBeDisabled();
+
+    resolveAdd(ats);
+    await waitFor(() => expect(screen.getByLabelText(/kind/i)).not.toBeDisabled());
+    expect(screen.getByLabelText(/board/i)).not.toBeDisabled();
+    expect(screen.getByLabelText(/slug/i)).not.toBeDisabled();
+  });
+
   it('says so when there are no sources at all', async () => {
     vi.spyOn(api, 'fetchSources').mockResolvedValue([]);
     render(<SourcesTable />);
