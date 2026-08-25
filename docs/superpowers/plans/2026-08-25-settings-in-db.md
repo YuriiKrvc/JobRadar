@@ -25,7 +25,12 @@
 - **Backend unit tests** are Jest, colocated as `src/**/*.spec.ts`, run with `npm test`. **Backend integration tests** are Vitest at `test/integration/**/*.integration.test.ts`, run with `npm run test:integration` against a live Postgres. **Dashboard tests** are Vitest at `dashboard/tests/**/*.test.{ts,tsx}`, run with `npm test`.
 - **`// ...` in a code block is an elision marker**, never a placeholder: it means "the surrounding lines of the existing file stay as they are". Each such block names the file and the anchor to insert at.
 - **`SettingsPage` grows across Tasks 10–13.** Its test file is written in Task 10 against the CV section alone, and Tasks 11, 12, and 13 mount three more sections into the same component. The Task 10 queries were chosen to stay unambiguous throughout (`/^cv$/i`, `/save cv/i`). If a later task makes a Testing Library query match multiple elements, tighten that query rather than deleting the assertion.
-- **Integration tests need a database.** Start one with `docker compose up -d db` and export `DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar` (note port **5433** — `docker-compose.yml:10` maps it there to avoid colliding with a host Postgres). Confirm against `.env` before running.
+- **Integration tests need a database, and TWO environment variables.** `drizzle-kit migrate` reads `DATABASE_URL` (see `backend/drizzle.config.ts`), but the integration suite reads **`DATABASE_URL_TEST`** (`backend/test/integration/postings.repository.integration.test.ts:6`). The separate name is deliberate: these tests `DELETE FROM` real tables, so they must never silently run against whatever `DATABASE_URL` happens to point at. Every new integration test in this plan uses `DATABASE_URL_TEST`. Start a database with `docker compose up -d db` and export both:
+  ```bash
+  export DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar
+  export DATABASE_URL_TEST="$DATABASE_URL"
+  ```
+  (port **5433** — `docker-compose.yml:10` maps it there to avoid colliding with a host Postgres). Confirm against `.env` before running.
 
 ## File Structure
 
@@ -350,6 +355,7 @@ Expected: PASS — same test count as before this task.
 ```bash
 docker compose up -d db
 export DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar
+export DATABASE_URL_TEST="$DATABASE_URL"
 npm run migrate
 npm run test:integration
 ```
@@ -390,8 +396,8 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq } from 'drizzle-orm';
 import { appSettings, sources } from '../../src/db/schema';
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error('DATABASE_URL is required for integration tests');
+const url = process.env.DATABASE_URL_TEST;
+if (!url) throw new Error('DATABASE_URL_TEST is required for integration tests');
 
 const sql = postgres(url, { max: 1 });
 const db = drizzle(sql);
@@ -480,6 +486,7 @@ describe('sources', () => {
 ```bash
 docker compose up -d db
 export DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar
+export DATABASE_URL_TEST="$DATABASE_URL"
 npm run test:integration -- settings.schema
 ```
 Expected: FAIL — `appSettings` and `sources` are not exported from `src/db/schema`.
@@ -705,8 +712,8 @@ import { appSettings, sources } from '../../src/db/schema';
 import { SettingsRepository } from '../../src/settings/settings.repository';
 import { SettingsService } from '../../src/settings/settings.service';
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error('DATABASE_URL is required for integration tests');
+const url = process.env.DATABASE_URL_TEST;
+if (!url) throw new Error('DATABASE_URL_TEST is required for integration tests');
 
 const sql = postgres(url, { max: 1 });
 const db = drizzle(sql);
@@ -1040,8 +1047,8 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { appSettings, sources } from '../../src/db/schema';
 import { seed } from '../../src/settings/seed';
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error('DATABASE_URL is required for integration tests');
+const url = process.env.DATABASE_URL_TEST;
+if (!url) throw new Error('DATABASE_URL_TEST is required for integration tests');
 
 const sql = postgres(url, { max: 1 });
 const db = drizzle(sql);
@@ -1766,6 +1773,7 @@ Expected: `tsc` clean; all suites PASS.
 
 ```bash
 export DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar
+export DATABASE_URL_TEST="$DATABASE_URL"
 npm run test:integration
 ```
 Expected: PASS
@@ -4352,6 +4360,7 @@ Run all three suites from a clean checkout:
 ```bash
 docker compose up -d db
 export DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar
+export DATABASE_URL_TEST="$DATABASE_URL"
 
 cd backend  && npm run build && npm test && npm run migrate && npm run test:integration
 cd ../dashboard && npm test && npm run build
