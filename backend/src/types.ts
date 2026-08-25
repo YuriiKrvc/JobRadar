@@ -12,3 +12,23 @@ export interface SubScores {
   logistics: Dimension;
   growth: Dimension;
 }
+
+export interface RawPosting {
+  id: string;
+  source: string;
+  externalId: string;
+  url: string;
+  title: string;
+  company: string;
+  location: string | null;
+  employmentType: string | null;
+  description: string;
+  raw: unknown;
+}
+
+export interface JobSource {
+  readonly id: string;
+  listPostings(): Promise<RawPosting[]>;
+}
+
+export type FetchFn = (url: string) => Promise<Response>;

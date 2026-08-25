@@ -1,0 +1,12 @@
+[
+  {
+    "id": "b3d1f2a4-0000-4c00-8000-abcdef123456",
+    "text": "Senior Node.js Engineer",
+    "hostedUrl": "https://jobs.lever.co/acme/b3d1f2a4-0000-4c00-8000-abcdef123456",
+    "categories": {
+      "location": "Remote (EU)",
+      "commitment": "Full-time"
+    },
+    "descriptionPlain": "You will build   Node services backed by Postgres.\nStrong TypeScript required."
+  }
+]
