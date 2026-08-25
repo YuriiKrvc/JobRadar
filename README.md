@@ -126,6 +126,33 @@ cross-origin by construction and fails without it.
 | GET | `/api/postings` | Query: `verdict`, `source`, `provider`, `minTotal`, `since`, `limit` |
 | GET | `/api/health` | Last 20 source runs |
 | GET | `/healthz` | Liveness |
+| GET | `/api/settings` | `{cv, rubricBody, rubricWeights, profile, version, updatedAt}` |
+| PUT | `/api/settings/cv` | `{cv}` — bumps `version` |
+| PUT | `/api/settings/rubric` | `{body, weights}` — bumps `version` |
+| PUT | `/api/settings/profile` | Whole profile document — bumps `version` |
+| GET | `/api/sources` | All rows, enabled and disabled |
+| POST | `/api/sources` | 201; 409 if that source already exists |
+| PATCH | `/api/sources/:id` | `{enabled}` — toggle only; 404 on unknown id |
+| DELETE | `/api/sources/:id` | 204; 404 on unknown id |
+
+The three document `PUT`s are separate so that one save is one version bump,
+with no diff logic deciding whether a bump is warranted. Each replaces its whole
+document, so a body missing a field is rejected rather than defaulted.
+
+A source's identity is immutable: `PATCH` toggles `enabled` and nothing else.
+Correcting a mistyped slug means deleting the row and adding it again — editing
+it in place would orphan every posting whose stable id came from the old
+`board:slug`.
+
+Errors carry one shape across every endpoint, and the dashboard reads `message`:
+
+```json
+{ "statusCode": 400, "error": "Bad Request", "message": "profile.minSalaryUsd: must be a positive integer" }
+```
+
+**These endpoints write, and there is no authentication.** They are safe only
+because the API binds `127.0.0.1` in every compose service; reach it over an SSH
+tunnel. Publishing port 8080 requires adding auth first.
 
 Response shapes live in `backend/src/api/api.schema.ts` and are mirrored in
 `dashboard/src/api/types.ts`. **Changing one means changing the other** — that
