@@ -23,9 +23,27 @@ run, or reasoned about without climbing out of its own directory.
 
 The coupling is not only cosmetic. The `api` service bind-mounts
 `./dashboard/dist` into the API container and sets `STATIC_ROOT`, so the
-backend's deployment descriptor reaches into the frontend's build output. That
-is a genuine dependency between the two projects, expressed in a file that
-belongs to neither.
+backend's deployment descriptor reaches into the frontend's build output.
+
+This was not drift. `2026-08-25-jobradar-design.md` chose it deliberately, and
+named its price: "Backend serves the built SPA — same-origin, so no CORS, no
+proxy config, no second container" against the cost "frontend build is coupled
+into the backend image". "Independent projects" was always scoped to *source*,
+never to deployment. What changes now is the deployment target, not our
+assessment of that trade-off at the time it was made.
+
+## Supersedes
+
+The original spec said to revisit same-origin serving "only if the dashboard is
+exposed publicly and needs TLS termination and auth". That trigger has not
+fired. This spec revisits it on a different one: **the dashboard will be
+deployed to a separate server.** Once the SPA is hosted elsewhere, the backend
+can never be the thing serving it, so the bind-mount and `STATIC_ROOT` are not a
+trade-off to weigh — they are unreachable configuration.
+
+That also settles the question the original spec left open. Same-origin serving
+is no longer available at any price, so the API must answer cross-origin
+requests, and CORS stops being an avoidable complication.
 
 ## Goal
 
@@ -37,8 +55,14 @@ user-owned.
 
 **In scope:** moving `docker-compose.yml`, `Dockerfile`, `.dockerignore`, `.env`
 and `.env.example` into `backend/`; rewriting every path they contain; removing
-the `dashboard/dist` mount from the `api` service; adding an opt-in CORS layer;
-updating `README.md` and `CLAUDE.md`; writing the feature doc.
+the `dashboard/dist` mount and `STATIC_ROOT` from the `api` service; deleting
+`ServeStaticModule` and the `@nestjs/serve-static` dependency; adding a
+`CORS_ORIGIN`-driven CORS layer; updating `README.md` and `CLAUDE.md`; writing
+the feature doc.
+
+After this change, no file under `backend/` refers to `dashboard/`, and no file
+under `dashboard/` refers to `backend/`. That is the acceptance criterion the
+rest of the spec serves.
 
 **Explicitly not in scope:**
 
@@ -53,8 +77,10 @@ updating `README.md` and `CLAUDE.md`; writing the feature doc.
 - **Moving `config/`.** `cv.md`, `profile.yaml`, `sources.yaml` and `rubric.md`
   are user-owned operational data — what you edit, not what you deploy. They
   stay at the repository root and are mounted from `../config`.
-- **Production hosting for the SPA.** Removing the mount leaves this to the
-  operator. The spec says so plainly rather than inventing an answer.
+- **Standing up the frontend's server.** The SPA is deployed to a separate
+  server; provisioning it, and choosing what serves `dist/` there, is its own
+  task. This spec's obligation is that the backend works correctly once that is
+  true — which means CORS.
 
 ## Target layout
 
@@ -142,17 +168,25 @@ name: jobradar
 This is the highest-risk element of the change. It is verified by observation —
 `docker volume ls | grep pgdata` before and after — not by reasoning.
 
-### Static serving becomes opt-in; CORS becomes available
+### Static serving is removed; CORS replaces it
 
-`ServeStaticModule` stays in `backend/src/main.ts` exactly as written. It already
-no-ops when `STATIC_ROOT` is unset, so removing the variable from compose is
-sufficient to disable it, and restoring same-origin serving later is a two-line
-compose edit rather than a code change. Nothing is deleted; the wiring moves out
-of the deployment descriptor.
+`ServeStaticModule` is deleted from `backend/src/main.ts`, along with the
+`staticRoot` constant, the conditional `imports` spread, and the
+`@nestjs/serve-static` dependency in `backend/package.json`. The backend no
+longer serves static assets at all.
 
-With the API no longer serving the SPA, browser requests to it may be
-cross-origin. `main.ts` gains an `app.enableCors()` call gated on a new
-`CORS_ORIGIN` variable, absent by default.
+Keeping it as a dormant opt-in was considered and rejected. With the SPA on its
+own server there is no path that sets `STATIC_ROOT`, so the branch is
+unreachable — a dependency and a conditional retained for a scenario the
+deployment model excludes. Deleting it is what makes "no references between the
+two projects" true in the code and not merely in the compose file.
+
+Because the SPA is served from another origin, `main.ts` gains an
+`app.enableCors()` call driven by a new `CORS_ORIGIN` variable. This is not a
+convenience: with static serving gone, **the dashboard cannot reach the API in
+production unless `CORS_ORIGIN` names its origin.** Absent the variable, CORS
+stays off, which is the correct default for the worker-only and API-only
+deployments that have no browser client.
 
 The parsing lives in `backend/src/cors.ts` rather than inline in `main.ts`.
 `main.ts` is a bootstrap script with no test seam; a small exported function has
@@ -160,11 +194,12 @@ one, and `src/**/*.spec.ts` is the repository's existing home for Jest unit
 tests. The function maps the raw environment value to CORS options or to
 `undefined`, and handles a comma-separated list of origins.
 
-**`CORS_ORIGIN` is not load-bearing today, and the docs must say so.** The
-documented development flow — `npm run dev`, with Vite proxying `/api` to
-`:8080` — is same-origin, so the variable is never exercised by it. It exists
-for `npm run preview` and for whoever hosts `dist/` somewhere else. Documenting
-it as essential would misrepresent the setup.
+**`CORS_ORIGIN` is load-bearing in production and inert in development.** The
+documented dev flow — `npm run dev`, Vite proxying `/api` to `:8080` — is
+same-origin, so the variable is never exercised there and a green local run
+proves nothing about it. Production is the opposite: the deployed dashboard is
+cross-origin by construction and fails without it. The docs must state both
+halves, or the first deployment breaks in a way local testing cannot predict.
 
 ### `backend/.env.example`
 
@@ -189,13 +224,23 @@ wherever they appear, rather than patched where convenient:
    server" / "Same-origin in both, so there is no CORS layer anywhere" —
    `README.md` intro and Development section, `CLAUDE.md` `dashboard/` section.
 3. "`dist/` must be built on the host before `docker compose up`" — no longer
-   true; the API does not read it.
+   true; the API does not read it, and nothing in the backend does.
+
+The replacement text must describe the actual arrangement: the backend builds
+and runs on its own and exposes an API; the dashboard is built and deployed to a
+separate server; the two meet only over HTTP, and `CORS_ORIGIN` is what permits
+that meeting. The README's "Two independent projects" claim becomes true of
+deployment as well as source, which is worth saying explicitly since it was
+previously true only of source.
 
 `README.md` also needs `cd backend` in the quick start, in the commands table,
 in the Development section, in "Switching to a local model" (`.env` →
 `backend/.env`) and in "Tuning the rubric" (`docker compose restart worker`).
 `CLAUDE.md`'s Docker section gains the project-name pin and loses the
-`dashboard/dist` mount.
+`dashboard/dist` mount; its `dashboard/` section loses the `ServeStaticModule`
+paragraph and gains the CORS seam. `backend/package.json` loses
+`@nestjs/serve-static`, so `package-lock.json` changes too — `npm install` in
+`backend/`, committed, not hand-edited.
 
 Per `CLAUDE.md`'s post-feature rule, a feature doc is written to
 `docs/features/per-project-docker-config.md`. It is the first file in that
@@ -209,10 +254,13 @@ directory.
 | Database survives the move | `docker volume ls \| grep pgdata` | `jobradar_pgdata`, before and after |
 | Image builds in the new context | `cd backend && docker compose build` | all four stages succeed |
 | Stack runs | `cd backend && docker compose up -d` then `curl -s :8080/healthz` and `curl -s :8080/api/health` | both respond |
-| API no longer serves the SPA | `curl -s -o /dev/null -w '%{http_code}' :8080/` | not 200 with SPA HTML |
+| API serves no static assets | `curl -s -o /dev/null -w '%{http_code}' :8080/` | 404 — no SPA, no index.html |
+| CORS preflight honoured | `curl -si -X OPTIONS :8080/api/postings -H 'Origin: http://localhost:5173' -H 'Access-Control-Request-Method: GET'` | `Access-Control-Allow-Origin: http://localhost:5173` |
+| CORS off by default | same request with `CORS_ORIGIN` unset | no `Access-Control-Allow-*` header |
 | Unit suite green | `cd backend && npm test` | passes, including the new `cors.spec.ts` |
 | Dashboard still works | `cd dashboard && npm run dev` | SPA at `:5173` shows live postings via the Vite proxy |
-| No stale references | `grep -rn 'STATIC_ROOT\|dashboard/dist\|docker compose up' README.md CLAUDE.md` | every hit reflects the new arrangement |
+| No cross-project references | `grep -rn 'dashboard' backend/` | no hits outside comments about the API contract |
+| No stale references | `grep -rn 'STATIC_ROOT\|serve-static\|dashboard/dist\|docker compose up' README.md CLAUDE.md backend/` | no hits except in this spec and the feature doc |
 
 The last row matters as much as the others: `CLAUDE.md` instructs grepping for
 old behaviour rather than guessing which files mention it.
@@ -230,10 +278,17 @@ working from the root. It reintroduces at the root exactly the file the change
 exists to remove, and requires Compose v2.20+. A `cd` is cheaper than the
 indirection.
 
-**Keeping the `dashboard/dist` bind-mount** behind a `DASHBOARD_DIST` variable.
-It preserves today's behaviour and needs no CORS, but leaves the backend's
-compose file reaching into a sibling project — the specific coupling this change
-targets.
+**Keeping the `dashboard/dist` bind-mount**, with or without a `DASHBOARD_DIST`
+variable to make the path configurable. It preserves today's behaviour and needs
+no CORS, but the frontend is moving to its own server: there will be no
+`dashboard/dist` on the backend host to mount.
+
+**Retaining `ServeStaticModule` as a dormant opt-in.** Attractive because it
+deletes nothing and leaves a one-line path back to same-origin serving. Rejected
+once the deployment target was settled: nothing sets `STATIC_ROOT` in a
+separate-server topology, so it is a dependency and a code branch kept alive for
+a configuration that will not occur. Restoring it later is a small, obvious
+change guided by this spec and the original one.
 
 **Creating `dashboard/.env` with a `VITE_API_URL`.** Symmetric, but it invents a
 configuration knob the frontend does not have in order to populate a file it
