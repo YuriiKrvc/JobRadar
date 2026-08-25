@@ -1,4 +1,4 @@
-import { WEIGHTS, weightedTotal, toVerdict } from './rubric';
+import { DEFAULT_WEIGHTS, weightedTotal, toVerdict } from './rubric';
 import type { SubScores } from '../types';
 
 function subs(v: Partial<Record<keyof SubScores, number>> = {}): SubScores {
@@ -14,7 +14,7 @@ function subs(v: Partial<Record<keyof SubScores, number>> = {}): SubScores {
 
 describe('rubric', () => {
   it('weights sum to 100', () => {
-    expect(Object.values(WEIGHTS).reduce((a, b) => a + b, 0)).toBe(100);
+    expect(Object.values(DEFAULT_WEIGHTS).reduce((a, b) => a + b, 0)).toBe(100);
   });
 
   it('returns 100 when every dimension is perfect', () => {

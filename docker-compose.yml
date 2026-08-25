@@ -20,7 +20,13 @@ services:
     # the runtime stage installs with --omit=dev, so it is absent there.
     build: { context: ., target: dev }
     env_file: [.env]
-    command: ["npx", "drizzle-kit", "migrate"]
+    environment:
+      CONFIG_DIR: /config
+    volumes: ["./config:/config:ro"]
+    command:
+      - sh
+      - -c
+      - "npx drizzle-kit migrate && npx tsx src/settings/seed.ts"
     depends_on:
       db: { condition: service_healthy }
 
