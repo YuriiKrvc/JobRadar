@@ -6,7 +6,12 @@ export function isNearMiss(row: PostingRow): boolean {
   return row.verdict === 'NO' && row.total >= 40 && row.total < 50;
 }
 
-export function PostingsTable({ rows }: { rows: PostingRow[] }) {
+interface Props {
+  rows: PostingRow[];
+  currentVersion: number | null;
+}
+
+export function PostingsTable({ rows, currentVersion }: Props) {
   const [descending, setDescending] = useState(true);
 
   const sorted = useMemo(
@@ -38,7 +43,22 @@ export function PostingsTable({ rows }: { rows: PostingRow[] }) {
           <tr key={r.postingId} className={isNearMiss(r) ? 'row-near-miss' : `row-${r.verdict}`}>
             <td className="total">{r.total}</td>
             <td><VerdictBadge verdict={r.verdict} /></td>
-            <td><a href={r.url} target="_blank" rel="noreferrer">{r.title}</a></td>
+            <td>
+              <a href={r.url} target="_blank" rel="noreferrer">{r.title}</a>
+              {/* `title` alone gives a screen reader nothing: the ⚠ glyph is
+                  announced as punctuation or skipped. role + aria-label make
+                  it a named image. */}
+              {currentVersion !== null && Number(r.settingsVersion) !== currentVersion && (
+                <span
+                  className="stale"
+                  role="img"
+                  aria-label={`Stale: scored under settings version ${r.settingsVersion}, current is ${currentVersion}`}
+                  title={`Scored under settings version ${r.settingsVersion}; current is ${currentVersion}`}
+                >
+                  ⚠
+                </span>
+              )}
+            </td>
             <td>{r.company}</td>
             <td>{r.source}</td>
             <td>{r.location ?? '—'}</td>

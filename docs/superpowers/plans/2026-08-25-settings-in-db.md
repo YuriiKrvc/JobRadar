@@ -19,12 +19,19 @@
 - **Working directory:** every `npm`, `npx`, `tsc`, `jest`, and `vitest` command in Tasks 1–8 runs from `backend/`. Tasks 9–13 run from `dashboard/`. Task 14 touches both projects and says which directory each step uses. Task 15 runs from the repository root. `docker compose` and `git` always run from the repository root.
 - **`scores` is append-only.** Never `UPDATE` a score row.
 - **Secrets stay in `.env`.** `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `DATABASE_URL`, `NOTIFY_THRESHOLD` are never read from or written to the database, and never cross the REST boundary.
+- **The settings endpoints are unauthenticated and MUST stay loopback-only.** `docker-compose.yml` binds the API to `127.0.0.1:8080`; never change that binding, add a `0.0.0.0` publish, or place a public proxy in front of it as part of this plan. These endpoints let anyone who can reach them rewrite the CV and rubric. Exposing the API to a network requires authentication first — that is a separate spec, not a step here.
 - **Verdict bands stay in code.** `toVerdict()` keeps its hardcoded 75 / 50 cutoffs. Only the weights become editable.
 - **Rubric dimension keys are fixed:** `coreStack`, `seniority`, `domain`, `logistics`, `growth`. They are pinned by the classifier's Zod output schema; this plan never adds or removes one.
 - **Backend unit tests** are Jest, colocated as `src/**/*.spec.ts`, run with `npm test`. **Backend integration tests** are Vitest at `test/integration/**/*.integration.test.ts`, run with `npm run test:integration` against a live Postgres. **Dashboard tests** are Vitest at `dashboard/tests/**/*.test.{ts,tsx}`, run with `npm test`.
 - **`// ...` in a code block is an elision marker**, never a placeholder: it means "the surrounding lines of the existing file stay as they are". Each such block names the file and the anchor to insert at.
+- **Never refetch after a failed save.** Every editor section holds local draft state and re-seeds from its `initial` prop via `useEffect`. If a save fails and the caller refetches anyway, that effect can overwrite the edit the user just failed to save. `useSave.run` therefore returns `false` on failure, and every caller must guard its refetch: `if (await save.run(x)) onSaved();`. For the same reason, disable a section's INPUTS while `saving` is true, not just its Save button — otherwise keystrokes typed during an in-flight request are discarded when the refetch re-seeds.
 - **`SettingsPage` grows across Tasks 10–13.** Its test file is written in Task 10 against the CV section alone, and Tasks 11, 12, and 13 mount three more sections into the same component. The Task 10 queries were chosen to stay unambiguous throughout (`/^cv$/i`, `/save cv/i`). If a later task makes a Testing Library query match multiple elements, tighten that query rather than deleting the assertion.
-- **Integration tests need a database.** Start one with `docker compose up -d db` and export `DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar` (note port **5433** — `docker-compose.yml:10` maps it there to avoid colliding with a host Postgres). Confirm against `.env` before running.
+- **Integration tests need a database, and TWO environment variables.** `drizzle-kit migrate` reads `DATABASE_URL` (see `backend/drizzle.config.ts`), but the integration suite reads **`DATABASE_URL_TEST`** (`backend/test/integration/postings.repository.integration.test.ts:6`). The separate name is deliberate: these tests `DELETE FROM` real tables, so they must never silently run against whatever `DATABASE_URL` happens to point at. Every new integration test in this plan uses `DATABASE_URL_TEST`. Start a database with `docker compose up -d db` and export both:
+  ```bash
+  export DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar
+  export DATABASE_URL_TEST="$DATABASE_URL"
+  ```
+  (port **5433** — `docker-compose.yml:10` maps it there to avoid colliding with a host Postgres). Confirm against `.env` before running.
 
 ## File Structure
 
@@ -349,6 +356,7 @@ Expected: PASS — same test count as before this task.
 ```bash
 docker compose up -d db
 export DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar
+export DATABASE_URL_TEST="$DATABASE_URL"
 npm run migrate
 npm run test:integration
 ```
@@ -389,8 +397,8 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq } from 'drizzle-orm';
 import { appSettings, sources } from '../../src/db/schema';
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error('DATABASE_URL is required for integration tests');
+const url = process.env.DATABASE_URL_TEST;
+if (!url) throw new Error('DATABASE_URL_TEST is required for integration tests');
 
 const sql = postgres(url, { max: 1 });
 const db = drizzle(sql);
@@ -479,6 +487,7 @@ describe('sources', () => {
 ```bash
 docker compose up -d db
 export DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar
+export DATABASE_URL_TEST="$DATABASE_URL"
 npm run test:integration -- settings.schema
 ```
 Expected: FAIL — `appSettings` and `sources` are not exported from `src/db/schema`.
@@ -704,8 +713,8 @@ import { appSettings, sources } from '../../src/db/schema';
 import { SettingsRepository } from '../../src/settings/settings.repository';
 import { SettingsService } from '../../src/settings/settings.service';
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error('DATABASE_URL is required for integration tests');
+const url = process.env.DATABASE_URL_TEST;
+if (!url) throw new Error('DATABASE_URL_TEST is required for integration tests');
 
 const sql = postgres(url, { max: 1 });
 const db = drizzle(sql);
@@ -998,7 +1007,7 @@ The runtime cannot switch to the database until there is a row to read. This tas
 - Test: `backend/test/integration/seed.integration.test.ts`
 
 **Interfaces:**
-- Consumes: `SettingsRepository` (Task 4), `loadConfig` (Task 1), `appSettings`/`sources` tables (Task 3).
+- Consumes: `loadConfig` (Task 1), `appSettings`/`sources` tables (Task 3), `createDb`/`closeDb` from `src/db/client.ts`. Deliberately NOT `SettingsRepository` — the seeder runs as a bare script with no Nest container, so it queries Drizzle directly.
 - Produces: `DEFAULT_WEIGHTS: RubricWeights`; `seed(db, configDir): Promise<'seeded-from-files' | 'seeded-defaults' | 'already-present'>`.
 
 - [ ] **Step 1: Rename `WEIGHTS` to `DEFAULT_WEIGHTS`**
@@ -1039,8 +1048,8 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { appSettings, sources } from '../../src/db/schema';
 import { seed } from '../../src/settings/seed';
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error('DATABASE_URL is required for integration tests');
+const url = process.env.DATABASE_URL_TEST;
+if (!url) throw new Error('DATABASE_URL_TEST is required for integration tests');
 
 const sql = postgres(url, { max: 1 });
 const db = drizzle(sql);
@@ -1765,6 +1774,7 @@ Expected: `tsc` clean; all suites PASS.
 
 ```bash
 export DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar
+export DATABASE_URL_TEST="$DATABASE_URL"
 npm run test:integration
 ```
 Expected: PASS
@@ -2764,7 +2774,8 @@ Expected: FAIL — cannot resolve `../src/hooks/useSave`.
 import { useCallback, useRef, useState } from 'react';
 
 export interface SaveState<T> {
-  run: (value: T) => Promise<void>;
+  /** Resolves true on success, false if the save failed. Never throws. */
+  run: (value: T) => Promise<boolean>;
   saving: boolean;
   error: string | null;
   saved: boolean;
@@ -2782,15 +2793,20 @@ export function useSave<T>(save: (value: T) => Promise<unknown>): SaveState<T> {
   const saveRef = useRef(save);
   saveRef.current = save;
 
-  const run = useCallback(async (value: T) => {
+  const run = useCallback(async (value: T): Promise<boolean> => {
     setSaving(true);
     setError(null);
     setSaved(false);
     try {
       await saveRef.current(value);
       setSaved(true);
+      return true;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
+      // Returning false rather than throwing lets the caller skip its refetch.
+      // Refetching after a failed save would re-seed the form from the server
+      // and silently discard the edit the user just failed to save.
+      return false;
     } finally {
       setSaving(false);
     }
@@ -3414,7 +3430,7 @@ export function ProfileForm({ initial, onSaved }: Props) {
 
       <div className="settings-actions">
         <button type="button" disabled={!dirty || save.saving}
-          onClick={async () => { await save.run(draft); onSaved(); }}>
+          onClick={async () => { if (await save.run(draft)) onSaved(); }}>
           {save.saving ? 'Saving…' : 'Save profile'}
         </button>
         {save.error && <span className="state" role="alert">{save.error}</span>}
@@ -3941,7 +3957,7 @@ export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
         <button
           type="button"
           disabled={!dirty || allZero || save.saving}
-          onClick={async () => { await save.run({ body, weights }); onSaved(); }}
+          onClick={async () => { if (await save.run({ body, weights })) onSaved(); }}
         >
           {save.saving ? 'Saving…' : 'Save rubric'}
         </button>
@@ -4351,6 +4367,7 @@ Run all three suites from a clean checkout:
 ```bash
 docker compose up -d db
 export DATABASE_URL=postgres://jobradar:jobradar@localhost:5433/jobradar
+export DATABASE_URL_TEST="$DATABASE_URL"
 
 cd backend  && npm run build && npm test && npm run migrate && npm run test:integration
 cd ../dashboard && npm test && npm run build

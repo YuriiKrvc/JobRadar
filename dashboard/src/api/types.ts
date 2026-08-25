@@ -12,6 +12,7 @@ export interface PostingRow {
   reasoning: string;
   providerId: string;
   scoredAt: string;
+  settingsVersion: string;
 }
 
 export interface HealthRow {
@@ -30,3 +31,44 @@ export interface PostingFilters {
   since?: string;
   limit?: number;
 }
+
+export interface RubricWeights {
+  coreStack: number;
+  seniority: number;
+  domain: number;
+  logistics: number;
+  growth: number;
+}
+
+export interface ProfileInput {
+  excludedLocations: string[];
+  allowedEmploymentTypes: string[];
+  minSalaryUsd: number | null;
+  timezone: string;
+}
+
+export interface SettingsResponse {
+  cv: string;
+  rubricBody: string;
+  rubricWeights: RubricWeights;
+  profile: ProfileInput;
+  version: number;
+  updatedAt: string;
+}
+
+export type SourceKind = 'ats' | 'djinni' | 'dou';
+
+export interface SourceRow {
+  id: string;
+  kind: SourceKind;
+  board: string | null;
+  slug: string | null;
+  url: string | null;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export type SourceInput =
+  | { kind: 'ats'; board: 'greenhouse' | 'lever' | 'ashby'; slug: string }
+  | { kind: 'djinni'; url: string }
+  | { kind: 'dou'; url: string };

@@ -2,8 +2,8 @@ import { Test } from '@nestjs/testing';
 import { ClassifierService } from './classifier.service';
 import { LLM_PROVIDER, selectProvider } from './classifier.module';
 import { FakeProvider } from './providers/fake';
-import { AppConfigService } from '../config/app-config.service';
 import type { RawPosting } from '../types';
+import type { AppSettings } from '../settings/schema';
 
 const posting: RawPosting = {
   id: 'x:1', source: 'x', externalId: '1', url: 'https://e.com/1',
@@ -22,11 +22,19 @@ const good = JSON.stringify({
   summary: 'Strong stack overlap, remote friendly.',
 });
 
-const configStub = {
+const settings: AppSettings = {
   cv: 'cv',
-  profile: { excludedLocations: [], allowedEmploymentTypes: [], minSalaryUsd: null, timezone: 'Europe/Kyiv' },
-  rubric: { version: '1', body: 'score five dimensions' },
-} as unknown as AppConfigService;
+  profile: {
+    excludedLocations: [], allowedEmploymentTypes: [],
+    minSalaryUsd: null, timezone: 'Europe/Kyiv',
+  },
+  rubric: {
+    version: '1',
+    body: 'score five dimensions',
+    weights: { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10 },
+  },
+  sources: { ats: [], djinni: [], dou: [] },
+};
 
 async function service(responses: string[]) {
   const provider = new FakeProvider(responses);
@@ -34,7 +42,6 @@ async function service(responses: string[]) {
     providers: [
       ClassifierService,
       { provide: LLM_PROVIDER, useValue: provider },
-      { provide: AppConfigService, useValue: configStub },
     ],
   }).compile();
   return { svc: moduleRef.get(ClassifierService), provider };
@@ -43,16 +50,29 @@ async function service(responses: string[]) {
 describe('ClassifierService', () => {
   it('computes the total in code and bands the verdict', async () => {
     const { svc } = await service([good]);
-    const v = await svc.classify(posting);
+    const v = await svc.classify(posting, settings);
     expect(v.total).toBe(84); // 8350 / 100 = 83.5, rounds to 84
     expect(v.verdict).toBe('STRONG');
     expect(v.providerId).toBe('fake');
-    expect(v.rubricVersion).toBe('1');
+    expect(v.settingsVersion).toBe('1');
+  });
+
+  it('uses the weights from the snapshot, not a hardcoded constant', async () => {
+    const { svc } = await service([good]);
+    const coreOnly: AppSettings = {
+      ...settings,
+      rubric: {
+        ...settings.rubric,
+        weights: { coreStack: 100, seniority: 0, domain: 0, logistics: 0, growth: 0 },
+      },
+    };
+    const v = await svc.classify(posting, coreOnly);
+    expect(v.total).toBe(90); // the coreStack subscore alone
   });
 
   it('retries once with the validation error when the first response is invalid', async () => {
     const { svc, provider } = await service(['not json at all', good]);
-    const v = await svc.classify(posting);
+    const v = await svc.classify(posting, settings);
     expect(v.total).toBe(84);
     expect(provider.calls).toHaveLength(2);
     expect(provider.calls[1]!.user).toMatch(/previous response was invalid/i);
@@ -60,13 +80,13 @@ describe('ClassifierService', () => {
 
   it('throws after a failed repair attempt', async () => {
     const { svc, provider } = await service(['garbage', 'still garbage']);
-    await expect(svc.classify(posting)).rejects.toThrow(/failed schema validation twice/i);
+    await expect(svc.classify(posting, settings)).rejects.toThrow(/failed schema validation twice/i);
     expect(provider.calls).toHaveLength(2);
   });
 
   it('tolerates prose wrapped around a JSON object', async () => {
     const { svc } = await service(['Here you go:\n```json\n' + good + '\n```\nDone.']);
-    expect((await svc.classify(posting)).total).toBe(84);
+    expect((await svc.classify(posting, settings)).total).toBe(84);
   });
 
   it('rejects out-of-range dimension scores', async () => {
@@ -79,7 +99,7 @@ describe('ClassifierService', () => {
       summary: 's',
     });
     const { svc } = await service([bad, bad]);
-    await expect(svc.classify(posting)).rejects.toThrow();
+    await expect(svc.classify(posting, settings)).rejects.toThrow();
   });
 });
 

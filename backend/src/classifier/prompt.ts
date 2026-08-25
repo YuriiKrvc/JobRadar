@@ -1,10 +1,13 @@
 import type { RawPosting } from '../types';
-import type { Profile, Rubric } from '../config/schema';
+import type { Profile, Rubric } from '../settings/schema';
 
 export interface PromptArgs {
   cv: string;
   profile: Profile;
-  rubric: Rubric;
+  // Only `body` is rendered into the prompt: weights are applied to the
+  // returned subscores by weightedTotal, never shown to the model. Narrowing
+  // to `body` keeps that visible in the type.
+  rubric: Pick<Rubric, 'body'>;
   posting: RawPosting;
 }
 

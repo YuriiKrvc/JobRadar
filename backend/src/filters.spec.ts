@@ -1,6 +1,6 @@
 import { applyHardFilters } from './filters';
 import type { RawPosting } from './types';
-import type { Profile } from './config/schema';
+import type { Profile } from './settings/schema';
 
 const profile: Profile = {
   excludedLocations: ['onsite: usa'],

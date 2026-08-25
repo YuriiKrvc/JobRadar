@@ -26,9 +26,6 @@ files nor the top-level `name:` key this project depends on.
 ```bash
 cd backend
 cp .env.example .env && $EDITOR .env   # API key, Telegram token + chat id, CORS_ORIGIN
-$EDITOR ../config/cv.md                # your CV, in prose
-$EDITOR ../config/profile.yaml         # hard constraints
-$EDITOR ../config/sources.yaml         # boards to watch
 docker compose up -d --build
 curl localhost:8080/api/health
 ```
@@ -43,6 +40,44 @@ cd ../dashboard && npm ci && npm run dev   # http://localhost:5173, proxies /api
 To deploy it, `npm run build` and copy `dist/` to any static host, then set
 `CORS_ORIGIN` in `backend/.env` to that host's origin and
 `cd backend && docker compose restart api`. The API serves no static assets.
+
+The dashboard opens on an empty Postings table with a "finish setup" prompt.
+Switch to **Settings**, paste your CV, set your hard constraints, and add at
+least one source. The next scheduled run picks them up.
+
+### Upgrading from a file-configured install
+
+`config/` used to be tracked, and this release stops tracking it. `git pull`
+therefore refuses to run while your edited `config/cv.md` is still tracked and
+modified. Do **not** unblock it with `git checkout -- config/`: that would
+restore the shipped placeholder over your CV before `migrate` ever reads it, and
+the seeder would import the placeholder, report `seeded-from-files`, and exit 0
+with your real configuration gone.
+
+Back it up first, untrack it locally, then pull:
+
+```bash
+cp -a config ../jobradar-config-backup    # 1. keep a copy outside the repo
+git rm -r --cached config                 # 2. untrack, leaving the files on disk
+git commit -m "untrack config/"           # 3. so the pull has nothing to overwrite
+git pull
+```
+
+Your files stay on disk untouched, and `config/` is in `.gitignore` from here
+on. Then run the first `docker compose up -d --build`: the `migrate` service
+imports `config/` into the database once and never touches it again.
+
+**Verify before you delete the backup.** Open the dashboard's Settings tab, or:
+
+```bash
+curl -s localhost:8080/api/settings | head -c 400
+```
+
+Confirm you see your real CV, your excluded locations, and your salary floor —
+not the "Replace this with your CV" placeholder. Only then remove
+`../jobradar-config-backup`. If you see the placeholder, the import took the
+wrong files: restore the backup into `config/`, empty the database
+(`cd backend && docker compose down -v`), and bring the stack up again.
 
 The first run backfills every currently-listed vacancy — expect roughly ten
 times a normal run's cost, once.
@@ -113,7 +148,16 @@ notify threshold is settable per provider via
 
 ## Tuning the rubric
 
-Edit `config/rubric.md`, bump its `version:` header, then
-`cd backend && docker compose restart worker`. Old scores keep their old version so history
-stays interpretable. Watch the near-miss band (scores 40–49, shown in red) — a
-cluster of good vacancies there means the rubric needs adjustment.
+Open the dashboard, switch to the **Settings** tab, and edit the rubric prose or
+the five dimension weights. Saving bumps the settings version, which is stored
+with every score written afterwards, so old scores stay interpretable and the
+postings table marks any row scored under an older version.
+
+Weights do not need to sum to 100 — each one is normalised by the actual total,
+and the percentage shown beside it is what the score uses. Raising `coreStack`
+from 35 to 70 doubles its influence without touching the other four.
+
+Changes take effect on the next scheduled run (every 30 minutes). No restart.
+
+Watch the near-miss band (scores 40–49, shown in red) — a cluster of good
+vacancies there means the rubric needs adjustment.

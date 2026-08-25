@@ -1,7 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadConfig } from './load';
+import { loadConfig } from './import';
 
 function fixtureDir(): string {
   const dir = mkdtempSync(join(tmpdir(), 'jobradar-'));
@@ -20,6 +20,10 @@ describe('loadConfig', () => {
     expect(cfg.cv).toContain('Senior Node engineer');
     expect(cfg.rubric.version).toBe('1');
     expect(cfg.rubric.body).toContain('Score each dimension');
+    // The header is a v1 file-format artifact, not rubric prose: it must not
+    // reach the dashboard textarea or the LLM prompt.
+    expect(cfg.rubric.body).not.toContain('version:');
+    expect(cfg.rubric.body).toBe('Score each dimension 0-100.\n');
     expect(cfg.profile.minSalaryUsd).toBe(4000);
     expect(cfg.profile.excludedLocations).toEqual(['Onsite: USA']);
     expect(cfg.sources.ats[0]).toEqual({ board: 'greenhouse', slug: 'acme' });

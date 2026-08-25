@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TelegramNotifier } from './telegram.notifier';
 import { NOTIFIER, type Notifier } from './types';
+import { NotifyConfig } from './notify.config';
 
 function required(key: string): string {
   const value = process.env[key];
@@ -10,6 +11,7 @@ function required(key: string): string {
 
 @Module({
   providers: [
+    NotifyConfig,
     {
       provide: NOTIFIER,
       useFactory: (): Notifier => new TelegramNotifier({
@@ -18,6 +20,6 @@ function required(key: string): string {
       }),
     },
   ],
-  exports: [NOTIFIER],
+  exports: [NOTIFIER, NotifyConfig],
 })
 export class NotifyModule {}

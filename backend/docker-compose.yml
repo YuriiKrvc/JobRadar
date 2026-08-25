@@ -25,18 +25,19 @@ services:
     # the runtime stage installs with --omit=dev, so it is absent there.
     build: { context: ., target: dev }
     env_file: [.env]
-    command: ["npx", "drizzle-kit", "migrate"]
+    environment:
+      CONFIG_DIR: /config
+    volumes: ["../config:/config:ro"]
+    command:
+      - sh
+      - -c
+      - "npx drizzle-kit migrate && npx tsx src/settings/seed.ts"
     depends_on:
       db: { condition: service_healthy }
 
   worker:
     build: { context: ., target: runtime }
     env_file: [.env]
-    environment:
-      CONFIG_DIR: /config
-    # config/ stays at the repository root: it is hand-edited operational
-    # input, not backend source.
-    volumes: ["../config:/config:ro"]
     command: ["node", "dist/worker.main.js"]
     restart: unless-stopped
     depends_on:
@@ -59,11 +60,8 @@ services:
     profiles: ["dev"]
     build: { context: ., target: dev }
     env_file: [.env]
-    environment:
-      CONFIG_DIR: /config
     volumes:
       - ./src:/app/src:ro
-      - ../config:/config:ro
     # tsc, not tsx: esbuild drops design:paramtypes, which breaks Nest's
     # constructor-type injection. tsc honours emitDecoratorMetadata.
     command: ["sh", "-c", "npx tsc -p tsconfig.build.json --watch --preserveWatchOutput & until [ -f dist/worker.main.js ]; do sleep 1; done; exec node --watch dist/worker.main.js"]
