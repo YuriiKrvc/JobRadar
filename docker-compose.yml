@@ -60,7 +60,9 @@ services:
     volumes:
       - ./backend/src:/app/src:ro
       - ./config:/config:ro
-    command: ["npx", "tsx", "watch", "src/worker.main.ts"]
+    # tsc, not tsx: esbuild drops design:paramtypes, which breaks Nest's
+    # constructor-type injection. tsc honours emitDecoratorMetadata.
+    command: ["sh", "-c", "npx tsc -p tsconfig.build.json --watch --preserveWatchOutput & until [ -f dist/worker.main.js ]; do sleep 1; done; exec node --watch dist/worker.main.js"]
     depends_on:
       db: { condition: service_healthy }
 
@@ -74,7 +76,8 @@ services:
     ports: ["127.0.0.1:8080:8080"]
     volumes:
       - ./backend/src:/app/src:ro
-    command: ["npx", "tsx", "watch", "src/main.ts"]
+    # tsc, not tsx: see worker-dev above.
+    command: ["sh", "-c", "npx tsc -p tsconfig.build.json --watch --preserveWatchOutput & until [ -f dist/main.js ]; do sleep 1; done; exec node --watch dist/main.js"]
     depends_on:
       db: { condition: service_healthy }
 
