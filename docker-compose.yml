@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: jobradar
+      POSTGRES_PASSWORD: jobradar
+      POSTGRES_DB: jobradar
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobradar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    # Built from the dev stage on purpose: drizzle-kit is a devDependency and
+    # the runtime stage installs with --omit=dev, so it is absent there.
+    build: { context: ., target: dev }
+    env_file: [.env]
+    command: ["npx", "drizzle-kit", "migrate"]
+    depends_on:
+      db: { condition: service_healthy }
+
+volumes:
+  pgdata:

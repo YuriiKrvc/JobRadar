@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+.git
+.env
+docs
+backend/test
+backend/coverage
+dashboard/tests
