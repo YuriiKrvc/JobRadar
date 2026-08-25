@@ -2,6 +2,7 @@ import { useApi } from '../hooks/useApi';
 import { fetchSettings, saveCv } from '../api/settings';
 import { DocumentEditor } from './DocumentEditor';
 import { ProfileForm } from './ProfileForm';
+import { RubricEditor } from './RubricEditor';
 import { SourcesTable } from './SourcesTable';
 
 export function SettingsPage() {
@@ -28,6 +29,12 @@ export function SettingsPage() {
         label="CV"
         initial={s.cv}
         onSave={(v) => saveCv(v)}
+        onSaved={settings.reload}
+      />
+
+      <RubricEditor
+        initialBody={s.rubricBody}
+        initialWeights={s.rubricWeights}
         onSaved={settings.reload}
       />
     </div>
