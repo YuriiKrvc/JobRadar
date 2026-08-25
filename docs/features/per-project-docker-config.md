@@ -61,12 +61,19 @@ the real one sat orphaned. `name: jobradar` on the first line of
 ```bash
 cd backend
 docker compose config | head -3          # must say: name: jobradar
+docker exec -it <db-container> psql -U jobradar -c 'select count(*) from postings'
+                                          # baseline row count — capture this before any future
+                                          # infrastructure move: a matching volume name (below)
+                                          # proves the volume was not recreated, but proves
+                                          # nothing about what's inside it
 docker compose up -d --build
 docker volume ls | grep pgdata           # jobradar_pgdata, not backend_pgdata
 curl -s localhost:8080/api/health        # data
 curl -s -o /dev/null -w '%{http_code}\n' localhost:8080/   # 404 — no static assets
 npm test                                 # includes src/cors.spec.ts
-grep -rn dashboard . --exclude-dir=node_modules --exclude-dir=dist  # nothing
+grep -rn dashboard . --exclude-dir=node_modules --exclude-dir=dist
+  # no hits outside comments about the API contract and imports of the
+  # backend-internal ./dashboard.queries module
 ```
 
 CORS, both directions:

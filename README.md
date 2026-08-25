@@ -18,8 +18,10 @@ told which origin to accept — see `CORS_ORIGIN` below.
 
 ## Quick start
 
-If `docker compose` reports `unknown command`, your Docker installs only the
-legacy standalone binary — substitute `docker-compose` in every command below.
+If `docker compose` reports `unknown command`, your Docker installs the
+standalone Compose v2 binary — substitute `docker-compose` in every command
+below. True Compose v1 will not work: it supports neither version-less compose
+files nor the top-level `name:` key this project depends on.
 
 ```bash
 cd backend
@@ -48,7 +50,10 @@ times a normal run's cost, once.
 The API has no authentication and binds to `127.0.0.1` only. Do not publish
 port 8080 without a reverse proxy providing TLS and auth. The dashboard is a
 static bundle deployed wherever you choose — its exposure is your call, not
-this repository's.
+this repository's. Postgres, however, is published on `5433` on *all*
+interfaces with the default `jobradar`/`jobradar` credentials — change them or
+bind `127.0.0.1:5433:5432` in `backend/docker-compose.yml` before running on a
+shared network.
 
 ## Commands
 

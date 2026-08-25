@@ -14,6 +14,11 @@ export type CorsConfig = { origin: string[] | true };
  * browser client. A bare `*` becomes `origin: true` rather than `['*']`,
  * because the `cors` package compares array entries literally and `['*']`
  * would therefore match no request at all.
+ *
+ * Each origin has a single trailing slash stripped, because the browser's
+ * `Origin` header never carries one — an operator who copies a URL with a
+ * trailing slash into `CORS_ORIGIN` would otherwise get CORS that is
+ * configured but silently never matches.
  */
 export function corsConfigFrom(raw: string | undefined): CorsConfig | undefined {
   const trimmed = raw?.trim();
@@ -22,7 +27,7 @@ export function corsConfigFrom(raw: string | undefined): CorsConfig | undefined 
 
   const origins = trimmed
     .split(',')
-    .map((o) => o.trim())
+    .map((o) => o.trim().replace(/\/$/, ''))
     .filter((o) => o.length > 0);
 
   return origins.length > 0 ? { origin: origins } : undefined;

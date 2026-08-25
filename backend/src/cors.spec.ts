@@ -40,4 +40,26 @@ describe('corsConfigFrom', () => {
       origin: ['*', 'http://a.example'],
     });
   });
+
+  it('strips a single trailing slash, since the Origin header never has one', () => {
+    expect(corsConfigFrom('http://a.example/')).toEqual({
+      origin: ['http://a.example'],
+    });
+  });
+
+  it('strips trailing slashes only from list entries that have one', () => {
+    expect(corsConfigFrom('http://a.example/,http://b.example')).toEqual({
+      origin: ['http://a.example', 'http://b.example'],
+    });
+  });
+
+  it('leaves an origin without a trailing slash unchanged', () => {
+    expect(corsConfigFrom('http://a.example')).toEqual({
+      origin: ['http://a.example'],
+    });
+  });
+
+  it('returns undefined when every entry in a ragged list is empty', () => {
+    expect(corsConfigFrom(',,')).toBeUndefined();
+  });
 });
