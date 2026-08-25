@@ -53,7 +53,7 @@ They share no source. The REST API is the entire contract between them.
 ### Stack
 
 - Node 22, TypeScript, ESM
-- `undici` fetch + `cheerio` for HTML parsing
+- Global `fetch` + `cheerio` for HTML parsing
 - Postgres 17 + Drizzle ORM (`postgres.js` driver)
 - `@anthropic-ai/sdk` for the default classifier provider
 - `hono` for the REST API
