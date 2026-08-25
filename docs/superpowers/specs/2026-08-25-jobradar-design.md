@@ -27,7 +27,7 @@ Six pipeline stages, run in order by the worker:
 ```
 sources.yaml ──► [1] adapters ──► RawPosting[]
                                       │
-                    [2] dedupe ───────┤  posting id present in DB → skip entirely
+                    [2] dedupe ───────┤  posting already has a score row → skip
                                       ▼
                     [3] hard filters ─┤  location / employment type → verdict NO, no LLM call
                                       ▼
@@ -84,20 +84,34 @@ interface JobSource {
 Companies and board URLs are listed in `sources.yaml`. Adding LinkedIn later means
 adding one file satisfying `JobSource`; nothing downstream changes.
 
-Each adapter produces a stable posting id of the form `source:externalId`.
+Each adapter produces a stable posting id: `source:externalId` for
+single-tenant sources (Djinni, DOU) and `board:slug:externalId` for ATS boards,
+where a bare external id is only unique within one company's board.
 
 ### 2. Dedupe
 
-`INSERT ... ON CONFLICT (id) DO UPDATE SET last_seen = now()`. If the row already
-existed, the posting is dropped from the pipeline. A vacancy is classified exactly
-once, ever.
+Every posting is upserted (`ON CONFLICT (id) DO UPDATE SET last_seen = now()`)
+so `last_seen` stays current. The pipeline then skips it if it **already has a
+score row**.
+
+Keying on the score rather than the posting is deliberate: a posting whose
+classification threw has no score, so the next run retries it, while a scored or
+hard-filtered posting is never paid for twice. Keying on the posting row would
+have made a transient classifier failure permanent.
 
 ### 3. Hard filters
 
 Deterministic, in code, before any model call. Driven by `profile.yaml`:
-excluded locations, allowed employment types, minimum salary where stated,
-timezone constraints. A rejected posting is stored with `verdict = NO` and
+excluded locations, allowed employment types, and minimum salary where one is
+stated. A rejected posting is stored with `verdict = NO` and
 `reasoning = "hard-filter:<rule>"`.
+
+**Timezone is deliberately not a hard filter.** Postings state timezone
+requirements in prose too irregularly to match reliably ("EU hours", "±3 CET",
+"significant overlap with PST"), and a regex strict enough to be useful would
+reject good vacancies silently. The timezone from `profile.yaml` is passed to
+the classifier instead and scored under the logistics dimension, where a wrong
+call is visible in the sub-score rather than invisible in a filter.
 
 ### 4. Classifier
 
@@ -219,7 +233,11 @@ run_log         id, source, status run_status_enum, postings_seen int,
 
 `scores` is append-only and carries `provider_id` + `rubric_version`, because a 78
 from Haiku and a 78 from a local 8B model do not mean the same thing. Rescoring
-adds a row rather than overwriting. Notify thresholds are configurable per provider.
+adds a row rather than overwriting.
+
+Notify thresholds are per provider: `NOTIFY_THRESHOLD_<PROVIDER_ID>` (non-alphanumerics
+replaced with `_`, uppercased) overrides the global `NOTIFY_THRESHOLD`, which
+defaults to 50.
 
 `notifications` is a separate table so a Telegram outage cannot corrupt scoring
 state, and the retry query is simply "scores above threshold with no successful
@@ -346,8 +364,9 @@ tight test loop is unaffected.
   ATS and DOU still complete and still notify. Every source's outcome is written to
   `run_log` and surfaced on the dashboard — a source silently returning zero
   postings for three days is the most likely failure mode and must be visible.
-- **Classifier failures** retry once via the schema-repair path, then mark the
-  posting errored and leave it for the next run rather than dropping it.
+- **Classifier failures** retry once via the schema-repair path. If that also
+  fails, no score row is written — which is exactly what makes the next run pick
+  the posting up again (see Dedupe). The failure is logged, not swallowed.
 - **Telegram failures** leave `sent_at` null; the next run retries.
 
 ## Testing
