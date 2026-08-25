@@ -115,7 +115,10 @@ Everything Docker lives in `backend/`, and the build context is `backend/` —
 are the same runtime image with different `command`s. Postgres is published on
 host `5433` (5432 is often taken); in-network clients still use `db:5432`.
 The `dev` profile (`worker-dev`, `api-dev`) bind-mounts `backend/src` for watch
-mode. Nothing binds beyond `127.0.0.1`, and there is no auth.
+mode. `api` and `api-dev` bind `127.0.0.1:8080:8080`, but `db`'s `5433:5432` has
+no host prefix, so Postgres is reachable from the local network on port 5433
+with the `jobradar`/`jobradar` credentials in `.env` — and there is no auth on
+the API either.
 
 `name: jobradar` on the first line is load-bearing. Compose otherwise derives
 the project name from the compose file's directory, and `backend/` would give

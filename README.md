@@ -31,10 +31,11 @@ docker compose up -d --build
 curl localhost:8080/api/health
 ```
 
-The dashboard is a separate project with its own lifecycle:
+The dashboard is a separate project with its own lifecycle. Continuing in the
+same shell (still inside `backend/` from the block above):
 
 ```bash
-cd dashboard && npm ci && npm run dev   # http://localhost:5173, proxies /api to :8080
+cd ../dashboard && npm ci && npm run dev   # http://localhost:5173, proxies /api to :8080
 ```
 
 To deploy it, `npm run build` and copy `dist/` to any static host, then set
@@ -63,9 +64,15 @@ this repository's.
 
 ## Development
 
+Two separate terminals — the API watches and serves continuously, and `npm run
+dev` occupies its own shell the same way:
+
 ```bash
 cd backend && docker compose --profile dev up -d db api-dev   # API on :8080, tsc watch
-cd dashboard && npm run dev                                   # Vite on :5173, proxies /api
+```
+
+```bash
+cd dashboard && npm run dev   # Vite on :5173, proxies /api
 ```
 
 Vite's proxy makes development same-origin, so `CORS_ORIGIN` is never exercised
