@@ -55,6 +55,17 @@ describe('SettingsRepository documents', () => {
     expect(row.version).toBe(2);
   });
 
+  it('surfaces an all-zero weights CHECK violation with its Postgres code', async () => {
+    // Reaches the DB directly (bypassing RubricWeightsSchema's refine, which
+    // normally blocks this) to exercise the app_settings_weights_nonzero
+    // CHECK constraint and confirm bump() unwraps it the same way addSource
+    // unwraps a unique violation.
+    const zeroed = { coreStack: 0, seniority: 0, domain: 0, logistics: 0, growth: 0 };
+    await expect(
+      repo.updateRubric('zeroed rubric', zeroed),
+    ).rejects.toMatchObject({ code: '23514' });
+  });
+
   it('bumps the version on a profile update', async () => {
     await repo.updateProfile({ ...PROFILE, minSalaryUsd: 9000 });
     const row = await repo.readRow();

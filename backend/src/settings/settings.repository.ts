@@ -8,6 +8,19 @@ import type { SourceRow } from './to-sources-config';
 
 export type AppSettingsRow = typeof appSettings.$inferSelect;
 
+/**
+ * drizzle-orm 0.44 wraps every driver error in a DrizzleQueryError, which
+ * hides the Postgres error `code` (e.g. 23505 unique_violation, 23514
+ * check_violation) on `.cause` instead of on the thrown error itself.
+ * Unwrap rather than rewrap so the original error, code intact, is what
+ * propagates to callers — never swallow, and only unwrap when there is an
+ * Error cause to unwrap to.
+ */
+function unwrapDriverError(err: unknown): unknown {
+  if (err instanceof Error && err.cause instanceof Error) return err.cause;
+  return err;
+}
+
 @Injectable()
 export class SettingsRepository {
   constructor(@Inject(DB) private readonly db: Database) {}
@@ -28,10 +41,14 @@ export class SettingsRepository {
   }
 
   private async bump(patch: Partial<AppSettingsRow>): Promise<void> {
-    await this.db
-      .update(appSettings)
-      .set({ ...patch, version: sql`${appSettings.version} + 1`, updatedAt: new Date() })
-      .where(eq(appSettings.id, true));
+    try {
+      await this.db
+        .update(appSettings)
+        .set({ ...patch, version: sql`${appSettings.version} + 1`, updatedAt: new Date() })
+        .where(eq(appSettings.id, true));
+    } catch (err) {
+      throw unwrapDriverError(err);
+    }
   }
 
   updateCv(cv: string): Promise<void> {
@@ -55,12 +72,7 @@ export class SettingsRepository {
       const [row] = await this.db.insert(sources).values(values).returning();
       return row!;
     } catch (err) {
-      // drizzle-orm 0.44 wraps the driver error in a DrizzleQueryError, which
-      // hides the Postgres error `code` (e.g. 23505) callers need to inspect.
-      // Unwrap rather than rewrap so the original error, code intact, is what
-      // propagates.
-      if (err instanceof Error && err.cause instanceof Error) throw err.cause;
-      throw err;
+      throw unwrapDriverError(err);
     }
   }
 
