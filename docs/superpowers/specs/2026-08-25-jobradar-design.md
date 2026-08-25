@@ -58,7 +58,8 @@ They share no source. The REST API is the entire contract between them.
 - `@anthropic-ai/sdk` for the default classifier provider
 - NestJS 11 for the backend (DI, modules, controllers)
 - `@nestjs/schedule` for the 30-minute cron
-- Vitest in both projects (+ `unplugin-swc` in the backend, so Nest's DI metadata survives the test transform), plus Testing Library + jsdom in the dashboard
+- Jest + `ts-jest` + `supertest` for backend unit tests — Nest's default toolchain, specs colocated as `src/**/*.spec.ts`
+- Vitest for backend integration tests (real Postgres, live sources) and for the dashboard (Testing Library + jsdom)
 - Vite + React + TypeScript for the dashboard (separate project)
 - Docker Compose for the backend only; the dashboard is built on the host
 
@@ -384,10 +385,23 @@ Vitest, run on the host.
 - One opt-in integration test hitting real endpoints, run manually, to catch
   upstream markup drift.
 
-The dashboard has its own suite (Vitest + Testing Library, jsdom) covering
-filtering, sorting, the near-miss band, and loading/error/empty states against a
-stubbed `fetch`. It runs independently of the backend suite — `npm test` in
-`dashboard/`.
+Test runners are split by kind, not by project:
+
+| Suite | Runner | Location | Command |
+|---|---|---|---|
+| Backend unit | Jest (`ts-jest`, `supertest`) | `backend/src/**/*.spec.ts` | `npm test` |
+| Backend integration | Vitest | `backend/test/integration/**` | `npm run test:integration` |
+| Dashboard | Vitest + Testing Library | `dashboard/tests/**` | `npm test` |
+
+The backend uses Nest's default unit-test toolchain so its tests read like every
+Nest example, and CommonJS keeps Jest free of ESM workarounds. Integration tests
+stay on Vitest because they are plain scripts against real infrastructure and
+need no DI container — they construct classes directly, which also sidesteps
+Vitest's lack of `design:paramtypes` emission. The two backend configs are
+scoped so neither picks up the other's files.
+
+The dashboard suite covers filtering, sorting, the near-miss band, and
+loading/error/empty states against a stubbed `fetch`.
 
 ## Decisions and trade-offs
 
@@ -400,6 +414,7 @@ stubbed `fetch`. It runs independently of the backend suite — `npm test` in
 | Postgres from day one | jsonb querying, real migrations, no concurrent-access limits | Postgres is a hard local prerequisite |
 | Drizzle | Schema-as-TS with generated reviewable SQL migrations; typed jsonb | Close call vs. hand-written SQL for a 3-table schema |
 | Containerized from scratch (backend only) | Local setup and deployment are one path for the service | Slower end-to-end inner loop; the dashboard must be built on the host before `up` |
+| Jest for backend units, Vitest for integration and frontend | Unit tests match Nest's documented default; integration tests and the Vite project keep the runner that suits them | Two runners in one repository, and the backend is CommonJS while the dashboard is ESM |
 | NestJS across the whole backend | One composition model for repository, classifier, pipeline, scheduler, and controllers; lifecycle hooks close the DB pool | Framework weight and decorator metadata for what is ultimately a small service |
 | Dashboard as a separate React project | Independent build, deps, and tests; the API contract is explicit rather than implied | Response types are duplicated on both sides |
 | Backend serves the built SPA | Same-origin, so no CORS, no proxy config, no second container | Frontend build is coupled into the backend image |
