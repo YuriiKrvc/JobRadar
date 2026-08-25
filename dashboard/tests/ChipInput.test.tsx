@@ -56,4 +56,13 @@ describe('ChipInput', () => {
     await userEvent.type(screen.getByLabelText('Excluded'), 'Kyiv{Enter}');
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it('disables the input and remove buttons when disabled', () => {
+    render(
+      <ChipInput id="x" label="Excluded" value={['US', 'India']} onChange={() => {}} disabled />,
+    );
+    expect(screen.getByLabelText('Excluded')).toBeDisabled();
+    expect(screen.getByRole('button', { name: /remove us/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /remove india/i })).toBeDisabled();
+  });
 });

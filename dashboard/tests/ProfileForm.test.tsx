@@ -80,4 +80,30 @@ describe('ProfileForm', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('minSalaryUsd');
   });
+
+  it('disables all field groups while a save is in flight', async () => {
+    let resolveSave!: (version: number) => void;
+    vi.spyOn(api, 'saveProfile').mockReturnValue(
+      new Promise<number>((resolve) => { resolveSave = resolve; }),
+    );
+    render(<ProfileForm initial={PROFILE} onSaved={() => {}} />);
+
+    await userEvent.clear(screen.getByLabelText(/minimum salary/i));
+    await userEvent.type(screen.getByLabelText(/minimum salary/i), '7000');
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }));
+
+    expect(screen.getByLabelText(/excluded locations/i)).toBeDisabled();
+    expect(screen.getByLabelText(/allowed employment types/i)).toBeDisabled();
+    expect(screen.getByLabelText(/minimum salary/i)).toBeDisabled();
+    expect(screen.getByLabelText(/timezone/i)).toBeDisabled();
+
+    resolveSave(4);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/excluded locations/i)).toBeEnabled();
+      expect(screen.getByLabelText(/allowed employment types/i)).toBeEnabled();
+      expect(screen.getByLabelText(/minimum salary/i)).toBeEnabled();
+      expect(screen.getByLabelText(/timezone/i)).toBeEnabled();
+    });
+  });
 });
