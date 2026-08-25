@@ -1,3 +1,8 @@
+# Pinned because Compose otherwise derives the project name from this file's
+# directory. Without it, moving this file out of the repository root renamed
+# the volume jobradar_pgdata -> backend_pgdata and orphaned the database.
+name: jobradar
+
 services:
   db:
     image: postgres:17-alpine
@@ -29,7 +34,9 @@ services:
     env_file: [.env]
     environment:
       CONFIG_DIR: /config
-    volumes: ["./config:/config:ro"]
+    # config/ stays at the repository root: it is hand-edited operational
+    # input, not backend source.
+    volumes: ["../config:/config:ro"]
     command: ["node", "dist/worker.main.js"]
     restart: unless-stopped
     depends_on:
@@ -41,9 +48,6 @@ services:
     env_file: [.env]
     environment:
       PORT: "8080"
-      STATIC_ROOT: "/app/public"
-    volumes:
-      - ./dashboard/dist:/app/public:ro
     ports: ["127.0.0.1:8080:8080"]
     command: ["node", "dist/main.js"]
     restart: unless-stopped
@@ -58,8 +62,8 @@ services:
     environment:
       CONFIG_DIR: /config
     volumes:
-      - ./backend/src:/app/src:ro
-      - ./config:/config:ro
+      - ./src:/app/src:ro
+      - ../config:/config:ro
     # tsc, not tsx: esbuild drops design:paramtypes, which breaks Nest's
     # constructor-type injection. tsc honours emitDecoratorMetadata.
     command: ["sh", "-c", "npx tsc -p tsconfig.build.json --watch --preserveWatchOutput & until [ -f dist/worker.main.js ]; do sleep 1; done; exec node --watch dist/worker.main.js"]
@@ -72,10 +76,9 @@ services:
     env_file: [.env]
     environment:
       PORT: "8080"
-      STATIC_ROOT: ""
     ports: ["127.0.0.1:8080:8080"]
     volumes:
-      - ./backend/src:/app/src:ro
+      - ./src:/app/src:ro
     # tsc, not tsx: see worker-dev above.
     command: ["sh", "-c", "npx tsc -p tsconfig.build.json --watch --preserveWatchOutput & until [ -f dist/main.js ]; do sleep 1; done; exec node --watch dist/main.js"]
     depends_on:
