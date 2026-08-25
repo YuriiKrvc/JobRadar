@@ -66,7 +66,7 @@ export class ClassifierService {
       subscores: parsed.subscores,
       reasoning: parsed.summary,
       providerId: this.provider.id,
-      rubricVersion: this.config.rubric.version,
+      settingsVersion: this.config.rubric.version,
     };
   }
 }

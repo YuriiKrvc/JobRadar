@@ -47,7 +47,7 @@ describe('ClassifierService', () => {
     expect(v.total).toBe(84); // 8350 / 100 = 83.5, rounds to 84
     expect(v.verdict).toBe('STRONG');
     expect(v.providerId).toBe('fake');
-    expect(v.rubricVersion).toBe('1');
+    expect(v.settingsVersion).toBe('1');
   });
 
   it('retries once with the validation error when the first response is invalid', async () => {

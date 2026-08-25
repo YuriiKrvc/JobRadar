@@ -52,7 +52,7 @@ export class PostingsRepository {
     const rows = await this.db.insert(scores).values({
       postingId,
       providerId: v.providerId,
-      rubricVersion: v.rubricVersion,
+      settingsVersion: v.settingsVersion,
       total: v.total,
       verdict: v.verdict,
       subscores: v.subscores,

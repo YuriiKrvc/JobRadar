@@ -18,7 +18,7 @@ function verdict(total: number, v: FitVerdict['verdict']): FitVerdict {
   return {
     total, verdict: v,
     subscores: { coreStack: d(1), seniority: d(1), domain: d(1), logistics: d(1), growth: d(1) },
-    reasoning: 'because', providerId: 'fake', rubricVersion: '1',
+    reasoning: 'because', providerId: 'fake', settingsVersion: '1',
   };
 }
 

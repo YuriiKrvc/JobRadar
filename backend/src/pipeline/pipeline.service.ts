@@ -73,7 +73,7 @@ export class PipelineService {
           await this.repo.insertScore(posting.id, {
             total: 0, verdict: 'NO', subscores: ZERO_SUBSCORES,
             reasoning: `hard-filter:${filter.rule}`,
-            providerId: 'hard-filter', rubricVersion: this.config.rubric.version,
+            providerId: 'hard-filter', settingsVersion: this.config.rubric.version,
           });
           continue;
         }

@@ -61,7 +61,7 @@ async function build(over: {
   const repo = over.repo ?? fakeRepo();
   const classify = over.classify ?? (async () => ({
     total: 80, verdict: 'STRONG', subscores: {}, reasoning: 'ok',
-    providerId: 'fake', rubricVersion: '1',
+    providerId: 'fake', settingsVersion: '1',
   }));
 
   const moduleRef = await Test.createTestingModule({
@@ -91,7 +91,7 @@ describe('PipelineService', () => {
   it('skips a posting that already has a score and never classifies it', async () => {
     const classify = jest.fn(async () => ({
       total: 80, verdict: 'STRONG', subscores: {}, reasoning: 'ok',
-      providerId: 'fake', rubricVersion: '1',
+      providerId: 'fake', settingsVersion: '1',
     }));
     const { svc } = await build({
       sources: [source('a', [posting('a:1'), posting('a:1')])], classify,

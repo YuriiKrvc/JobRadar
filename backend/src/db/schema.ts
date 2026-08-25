@@ -24,7 +24,7 @@ export const scores = pgTable('scores', {
   id: serial('id').primaryKey(),
   postingId: text('posting_id').notNull().references(() => postings.id),
   providerId: text('provider_id').notNull(),
-  rubricVersion: text('rubric_version').notNull(),
+  settingsVersion: text('settings_version').notNull(),
   total: integer('total').notNull(),
   verdict: verdictEnum('verdict').notNull(),
   subscores: jsonb('subscores').$type<SubScores>().notNull(),

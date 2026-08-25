@@ -39,5 +39,5 @@ export interface FitVerdict {
   subscores: SubScores;
   reasoning: string;
   providerId: string;
-  rubricVersion: string;
+  settingsVersion: string;
 }
