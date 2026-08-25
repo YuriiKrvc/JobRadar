@@ -62,6 +62,26 @@ describe('seed', () => {
     expect(await db.select().from(sources)).toHaveLength(0);
   });
 
+  it('inserts built-in defaults when the config directory exists but is empty', async () => {
+    // Docker creates an empty dir when the host bind-mount source is missing
+    // (e.g. `config/` untracked and not present on a fresh clone). That must
+    // seed defaults, not throw, or `migrate` fails and blocks worker/api.
+    const dir = mkdtempSync(join(tmpdir(), 'jobradar-seed-empty-'));
+    expect(await seed(db, dir)).toBe('seeded-defaults');
+
+    const [row] = await db.select().from(appSettings);
+    expect(row.cv).toContain('Replace this with your CV');
+    expect(await db.select().from(sources)).toHaveLength(0);
+  });
+
+  it('throws when the config directory has cv.md but is missing other required files', async () => {
+    // A directory that HAS cv.md but not the rest is a genuine
+    // misconfiguration, not a fresh install, and must fail loudly.
+    const dir = mkdtempSync(join(tmpdir(), 'jobradar-seed-partial-'));
+    writeFileSync(join(dir, 'cv.md'), '# Partial CV\n');
+    await expect(seed(db, dir)).rejects.toThrow('Missing required config file');
+  });
+
   it('is idempotent: a second run changes nothing', async () => {
     await seed(db, configDir());
     await db.update(appSettings).set({ cv: 'edited by the user' });

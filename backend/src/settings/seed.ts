@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { createDb, closeDb, type Database } from '../db/client';
 import { appSettings, sources } from '../db/schema';
 import { DEFAULT_WEIGHTS } from '../classifier/rubric';
@@ -38,7 +39,13 @@ export async function seed(db: Database, configDir: string): Promise<SeedOutcome
   const existing = await db.select({ id: appSettings.id }).from(appSettings).limit(1);
   if (existing.length > 0) return 'already-present';
 
-  const file: FileConfig | null = existsSync(configDir) ? loadConfig(configDir) : null;
+  // Probe for cv.md specifically rather than just the directory: Docker
+  // creates an empty directory when a bind-mount source is missing on the
+  // host (e.g. `config/` untracked and absent on a fresh clone), and an
+  // empty directory must seed defaults, not throw. A directory that DOES
+  // have cv.md but is missing the other required files is a genuine
+  // misconfiguration and should still fail loudly via loadConfig.
+  const file: FileConfig | null = existsSync(join(configDir, 'cv.md')) ? loadConfig(configDir) : null;
 
   await db.insert(appSettings).values({
     cv: file?.cv ?? DEFAULT_CV,
