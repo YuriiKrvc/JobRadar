@@ -24,6 +24,7 @@
 - **Rubric dimension keys are fixed:** `coreStack`, `seniority`, `domain`, `logistics`, `growth`. They are pinned by the classifier's Zod output schema; this plan never adds or removes one.
 - **Backend unit tests** are Jest, colocated as `src/**/*.spec.ts`, run with `npm test`. **Backend integration tests** are Vitest at `test/integration/**/*.integration.test.ts`, run with `npm run test:integration` against a live Postgres. **Dashboard tests** are Vitest at `dashboard/tests/**/*.test.{ts,tsx}`, run with `npm test`.
 - **`// ...` in a code block is an elision marker**, never a placeholder: it means "the surrounding lines of the existing file stay as they are". Each such block names the file and the anchor to insert at.
+- **Never refetch after a failed save.** Every editor section holds local draft state and re-seeds from its `initial` prop via `useEffect`. If a save fails and the caller refetches anyway, that effect can overwrite the edit the user just failed to save. `useSave.run` therefore returns `false` on failure, and every caller must guard its refetch: `if (await save.run(x)) onSaved();`. For the same reason, disable a section's INPUTS while `saving` is true, not just its Save button — otherwise keystrokes typed during an in-flight request are discarded when the refetch re-seeds.
 - **`SettingsPage` grows across Tasks 10–13.** Its test file is written in Task 10 against the CV section alone, and Tasks 11, 12, and 13 mount three more sections into the same component. The Task 10 queries were chosen to stay unambiguous throughout (`/^cv$/i`, `/save cv/i`). If a later task makes a Testing Library query match multiple elements, tighten that query rather than deleting the assertion.
 - **Integration tests need a database, and TWO environment variables.** `drizzle-kit migrate` reads `DATABASE_URL` (see `backend/drizzle.config.ts`), but the integration suite reads **`DATABASE_URL_TEST`** (`backend/test/integration/postings.repository.integration.test.ts:6`). The separate name is deliberate: these tests `DELETE FROM` real tables, so they must never silently run against whatever `DATABASE_URL` happens to point at. Every new integration test in this plan uses `DATABASE_URL_TEST`. Start a database with `docker compose up -d db` and export both:
   ```bash
@@ -2773,7 +2774,8 @@ Expected: FAIL — cannot resolve `../src/hooks/useSave`.
 import { useCallback, useRef, useState } from 'react';
 
 export interface SaveState<T> {
-  run: (value: T) => Promise<void>;
+  /** Resolves true on success, false if the save failed. Never throws. */
+  run: (value: T) => Promise<boolean>;
   saving: boolean;
   error: string | null;
   saved: boolean;
@@ -2791,15 +2793,20 @@ export function useSave<T>(save: (value: T) => Promise<unknown>): SaveState<T> {
   const saveRef = useRef(save);
   saveRef.current = save;
 
-  const run = useCallback(async (value: T) => {
+  const run = useCallback(async (value: T): Promise<boolean> => {
     setSaving(true);
     setError(null);
     setSaved(false);
     try {
       await saveRef.current(value);
       setSaved(true);
+      return true;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
+      // Returning false rather than throwing lets the caller skip its refetch.
+      // Refetching after a failed save would re-seed the form from the server
+      // and silently discard the edit the user just failed to save.
+      return false;
     } finally {
       setSaving(false);
     }
@@ -3423,7 +3430,7 @@ export function ProfileForm({ initial, onSaved }: Props) {
 
       <div className="settings-actions">
         <button type="button" disabled={!dirty || save.saving}
-          onClick={async () => { await save.run(draft); onSaved(); }}>
+          onClick={async () => { if (await save.run(draft)) onSaved(); }}>
           {save.saving ? 'Saving…' : 'Save profile'}
         </button>
         {save.error && <span className="state" role="alert">{save.error}</span>}
@@ -3950,7 +3957,7 @@ export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
         <button
           type="button"
           disabled={!dirty || allZero || save.saving}
-          onClick={async () => { await save.run({ body, weights }); onSaved(); }}
+          onClick={async () => { if (await save.run({ body, weights })) onSaved(); }}
         >
           {save.saving ? 'Saving…' : 'Save rubric'}
         </button>
