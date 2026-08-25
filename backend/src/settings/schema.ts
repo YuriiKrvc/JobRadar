@@ -50,6 +50,8 @@ export const SourceInputSchema = z.discriminatedUnion('kind', [
 ]);
 export type SourceInput = z.infer<typeof SourceInputSchema>;
 
+export const EnabledBodySchema = z.object({ enabled: z.boolean() }).strict();
+
 /** The runtime snapshot. `version` is String(app_settings.version). */
 export interface Rubric {
   version: string;
