@@ -41,15 +41,25 @@ sources.yaml ──► [1] adapters ──► RawPosting[]
 Dedupe and hard filters run before the classifier so no vacancy is ever paid for
 twice, and obvious rejects cost nothing.
 
+The repository holds two independent projects:
+
+```
+backend/     pipeline, worker, REST API   (Node + TypeScript)
+dashboard/   read-only UI                 (Vite + React + TypeScript)
+```
+
+They share no source. The REST API is the entire contract between them.
+
 ### Stack
 
 - Node 22, TypeScript, ESM
 - `undici` fetch + `cheerio` for HTML parsing
 - Postgres 17 + Drizzle ORM (`postgres.js` driver)
 - `@anthropic-ai/sdk` for the default classifier provider
-- `hono` for the dashboard
+- `hono` for the REST API
 - `node-cron` for scheduling
-- `vitest` for tests
+- `vitest` for tests, plus Testing Library + jsdom in the dashboard
+- Vite + React + TypeScript for the dashboard (separate project)
 - Docker Compose for everything
 
 ## Components
@@ -228,11 +238,51 @@ Send failures leave `notifications.sent_at` null so the next run retries.
 
 ### 7. Dashboard
 
-`hono` serving one server-rendered HTML page on `localhost:8080`. Table of all
-postings with their latest score; filter by verdict, source, provider, and date;
-sort by total. Includes the near-miss band and a source-health panel driven by
-`run_log`. No React, no build step — filters on a table do not justify a frontend
-toolchain.
+Two separate projects in one repository, communicating over a REST API.
+
+```
+backend/     Node service: pipeline, worker, and the REST API
+dashboard/   Vite + React + TypeScript SPA
+```
+
+Each has its own `package.json`, dependency tree, tests, and build. Neither
+imports source from the other; the REST contract is the only coupling.
+
+#### REST API (backend)
+
+`hono` on port 8080, JSON only.
+
+| Method | Path              | Returns                                                        |
+|--------|-------------------|----------------------------------------------------------------|
+| GET    | `/api/postings`   | Latest score per posting. Query: `verdict`, `source`, `minTotal`, `since`, `limit` |
+| GET    | `/api/health`     | Last 20 `run_log` rows, newest first                            |
+| GET    | `/healthz`        | `{"ok": true}` liveness probe                                   |
+
+Responses are typed by Zod schemas in `backend/src/api/schema.ts`. The
+dashboard maintains its own matching types — duplication is accepted as the
+price of keeping the two projects independent.
+
+#### Dashboard (frontend)
+
+Vite + React + TypeScript. One screen: a table of postings with their latest
+score, client-side filtering by verdict/source/provider, sorting by total, the
+40–49 near-miss band visually distinct, and a source-health panel.
+
+Plain `fetch` with a small `useApi` hook; plain CSS. No data-fetching library
+and no CSS framework — one screen against one endpoint does not justify either,
+and both are additive later.
+
+#### Serving
+
+In development, Vite's dev server runs on 5173 with `server.proxy` forwarding
+`/api` to the backend — HMR, and no CORS.
+
+In production the backend serves the built assets via `serveStatic` alongside
+the API on port 8080, so requests are same-origin. A separate static-file
+container (nginx, Caddy) is deliberately not used: it adds a container and a
+config file to solve a CORS-and-routing problem that same-origin serving
+removes outright. Revisit only if the dashboard is exposed publicly and needs
+TLS termination and auth.
 
 ## Deployment
 
@@ -263,9 +313,10 @@ kill the scheduler, and the service carries `restart: unless-stopped`. The pipel
 remains independently invocable via
 `docker compose run --rm worker npm run once`.
 
-**Dockerfile** is multi-stage: `deps` (`npm ci`), `build` (`tsc`), and a slim
-`node:22-alpine` runtime carrying only production deps and `dist/`, running as a
-non-root user. A `dev` target adds dev dependencies and runs `tsx watch` against
+**Dockerfile** is multi-stage: `deps` (`npm ci`), `build-api` (`tsc`),
+`build-web` (`vite build` in `dashboard/`), and a slim `node:22-alpine` runtime
+carrying only production deps, the compiled `dist/`, and the dashboard bundle in
+`public/`, running as a non-root user. A `dev` target adds dev dependencies and runs `tsx watch` against
 bind-mounted source, available via `docker compose --profile dev up`.
 
 **Config and secrets:** `.env` (gitignored) supplies `ANTHROPIC_API_KEY`,
@@ -310,6 +361,11 @@ Vitest, run on the host.
 - One opt-in integration test hitting real endpoints, run manually, to catch
   upstream markup drift.
 
+The dashboard has its own suite (Vitest + Testing Library, jsdom) covering
+filtering, sorting, the near-miss band, and loading/error/empty states against a
+stubbed `fetch`. It runs independently of the backend suite — `npm test` in
+`dashboard/`.
+
 ## Decisions and trade-offs
 
 | Decision | Rationale | Cost accepted |
@@ -321,6 +377,10 @@ Vitest, run on the host.
 | Postgres from day one | jsonb querying, real migrations, no concurrent-access limits | Postgres is a hard local prerequisite |
 | Drizzle | Schema-as-TS with generated reviewable SQL migrations; typed jsonb | Close call vs. hand-written SQL for a 3-table schema |
 | Containerized from scratch | Local setup and deployment are one path, not two | Slower end-to-end inner loop |
+| Dashboard as a separate React project | Independent build, deps, and tests; the API contract is explicit rather than implied | Response types are duplicated on both sides |
+| Backend serves the built SPA | Same-origin, so no CORS, no proxy config, no second container | Frontend build is coupled into the backend image |
+| No nginx | It would exist only to serve static files and proxy `/api` — both solved by same-origin serving | Must add a proxy later if the dashboard is exposed publicly |
+| Plain fetch + plain CSS | One screen against one endpoint; TanStack Query and Tailwind are additive later | Loading/error/refetch logic is hand-written |
 | `node-cron` over container cron | Logs to stdout, inherits env, clean SIGTERM | Long-lived process; mitigated by try/catch + restart policy |
 
 ## Out of scope
