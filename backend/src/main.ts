@@ -3,6 +3,7 @@ import { Logger, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { DatabaseModule } from './db/db.module';
+import { SettingsModule } from './settings/settings.module';
 import { ApiModule } from './api/api.module';
 
 const staticRoot = process.env.STATIC_ROOT?.trim();
@@ -10,6 +11,7 @@ const staticRoot = process.env.STATIC_ROOT?.trim();
 @Module({
   imports: [
     DatabaseModule,
+    SettingsModule,
     ApiModule,
     // Serving the SPA from the API means same-origin requests: no CORS layer
     // and no second container. Skipped in development, where Vite serves it.

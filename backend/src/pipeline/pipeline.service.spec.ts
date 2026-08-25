@@ -2,11 +2,13 @@ import { Test } from '@nestjs/testing';
 import { PipelineService } from './pipeline.service';
 import { PostingsRepository } from '../db/postings.repository';
 import { ClassifierService } from '../classifier/classifier.service';
-import { AppConfigService } from '../config/app-config.service';
-import { SOURCES } from '../sources/sources.module';
+import { BUILD_SOURCES } from '../sources/sources.module';
+import { SettingsService } from '../settings/settings.service';
+import { NotifyConfig } from '../notify/notify.config';
 import { NOTIFIER } from '../notify/types';
 import { LLM_PROVIDER } from '../classifier/classifier.module';
 import type { JobSource, RawPosting } from '../types';
+import type { AppSettings } from '../settings/schema';
 
 function posting(id: string, over: Partial<RawPosting> = {}): RawPosting {
   return {
@@ -43,18 +45,23 @@ function fakeRepo() {
   };
 }
 
-const configStub = {
+const settings: AppSettings = {
+  cv: 'a real cv',
   profile: {
     excludedLocations: ['onsite: usa'], allowedEmploymentTypes: [],
     minSalaryUsd: null, timezone: 'Europe/Kyiv',
   },
-  rubric: { version: '1', body: 'r' },
-  notifyThresholdFor: () => 50,
-} as unknown as AppConfigService;
+  rubric: {
+    version: '1', body: 'r',
+    weights: { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10 },
+  },
+  sources: { ats: [{ board: 'greenhouse', slug: 'acme' }], djinni: [], dou: [] },
+};
 
 async function build(over: {
   sources?: JobSource[];
-  classify?: (p: RawPosting) => Promise<any>;
+  settings?: AppSettings;
+  classify?: (p: RawPosting, s: AppSettings) => Promise<any>;
   notifier?: { channel: string; send: (i: any) => Promise<void> };
   repo?: ReturnType<typeof fakeRepo>;
 } = {}) {
@@ -63,14 +70,16 @@ async function build(over: {
     total: 80, verdict: 'STRONG', subscores: {}, reasoning: 'ok',
     providerId: 'fake', settingsVersion: '1',
   }));
+  const sources = over.sources ?? [source('a', [posting('a:1')])];
 
   const moduleRef = await Test.createTestingModule({
     providers: [
       PipelineService,
       { provide: PostingsRepository, useValue: repo },
       { provide: ClassifierService, useValue: { classify } },
-      { provide: AppConfigService, useValue: configStub },
-      { provide: SOURCES, useValue: over.sources ?? [source('a', [posting('a:1')])] },
+      { provide: SettingsService, useValue: { load: async () => over.settings ?? settings } },
+      { provide: BUILD_SOURCES, useValue: () => sources },
+      { provide: NotifyConfig, useValue: { thresholdFor: () => 50 } },
       { provide: NOTIFIER, useValue: over.notifier ?? { channel: 'telegram', send: async () => {} } },
       { provide: LLM_PROVIDER, useValue: { id: 'fake' } },
     ],
@@ -153,5 +162,47 @@ describe('PipelineService', () => {
     const second = await working.svc.run();
     expect(second.skippedDuplicate).toBe(0);
     expect(second.classified).toBe(1);
+  });
+});
+
+describe('incomplete settings', () => {
+  it('skips the run and logs when the CV is empty', async () => {
+    const repo = fakeRepo();
+    const { svc } = await build({ repo, settings: { ...settings, cv: '   ' } });
+    const s = await svc.run();
+
+    expect(s.fetched).toBe(0);
+    expect(s.classified).toBe(0);
+    expect(repo.runs).toEqual([{ source: 'settings', status: 'error' }]);
+    expect(repo.logRun).toHaveBeenCalledWith(
+      'settings', 'error', 0, expect.stringMatching(/settings incomplete: no CV/),
+    );
+  });
+
+  it('skips the run and logs when no source is enabled', async () => {
+    const repo = fakeRepo();
+    const { svc } = await build({
+      repo,
+      settings: { ...settings, sources: { ats: [], djinni: [], dou: [] } },
+    });
+    const s = await svc.run();
+
+    expect(s.fetched).toBe(0);
+    expect(repo.logRun).toHaveBeenCalledWith(
+      'settings', 'error', 0, expect.stringMatching(/no enabled sources/),
+    );
+  });
+
+  it('never calls the classifier when settings are incomplete', async () => {
+    const classify = jest.fn();
+    const { svc } = await build({ classify, settings: { ...settings, cv: '' } });
+    await svc.run();
+    expect(classify).not.toHaveBeenCalled();
+  });
+
+  it('runs normally when settings are complete', async () => {
+    const { svc } = await build();
+    const s = await svc.run();
+    expect(s.fetched).toBe(1);
   });
 });

@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AppConfigService } from '../config/app-config.service';
 import { LLM_PROVIDER, type LLMProvider } from './providers/types';
 import { RawVerdictSchema, VERDICT_JSON_SCHEMA, type RawVerdict } from './schema';
 import { buildPrompt } from './prompt';
 import { toVerdict, weightedTotal } from './rubric';
 import type { FitVerdict, RawPosting } from '../types';
+import type { AppSettings } from '../settings/schema';
 
 export function extractJson(raw: string): unknown {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(raw);
@@ -21,16 +21,13 @@ function parse(raw: string): RawVerdict {
 
 @Injectable()
 export class ClassifierService {
-  constructor(
-    @Inject(LLM_PROVIDER) private readonly provider: LLMProvider,
-    private readonly config: AppConfigService,
-  ) {}
+  constructor(@Inject(LLM_PROVIDER) private readonly provider: LLMProvider) {}
 
-  async classify(posting: RawPosting): Promise<FitVerdict> {
+  async classify(posting: RawPosting, settings: AppSettings): Promise<FitVerdict> {
     const { system, user } = buildPrompt({
-      cv: this.config.cv,
-      profile: this.config.profile,
-      rubric: this.config.rubric,
+      cv: settings.cv,
+      profile: settings.profile,
+      rubric: settings.rubric,
       posting,
     });
 
@@ -59,14 +56,14 @@ export class ClassifierService {
       }
     }
 
-    const total = weightedTotal(parsed.subscores);
+    const total = weightedTotal(parsed.subscores, settings.rubric.weights);
     return {
       total,
       verdict: toVerdict(total),
       subscores: parsed.subscores,
       reasoning: parsed.summary,
       providerId: this.provider.id,
-      settingsVersion: this.config.rubric.version,
+      settingsVersion: settings.rubric.version,
     };
   }
 }
