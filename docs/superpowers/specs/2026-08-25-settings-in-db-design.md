@@ -35,9 +35,11 @@ automatically.
   belong in the database or in an HTTP response, and moving them would drag
   write-only fields, masking, and an authentication story into a release that
   otherwise needs none.
-- **Rubric weights.** The numeric weights live in `src/classifier/rubric.ts` as
-  `WEIGHTS`, not in `rubric.md`. They stay in code. Only the prose body — the
-  anchored dimension descriptions the model reads — becomes editable.
+- **Verdict band thresholds.** `toVerdict()` in `src/classifier/rubric.ts`
+  holds the STRONG/MAYBE cutoffs (75 and 50). They stay in code. The bands
+  define what STRONG *means* across the tool's whole history, whereas weights
+  only affect scores computed after the change; making the cutoffs editable
+  would retroactively alter how every stored score reads.
 - **Settings history and rollback.** One mutable row plus a version counter, not
   a revision log. See *Versioning* below for the accepted cost.
 - **Rescoring.** Editing the rubric does not re-run the classifier over stored
@@ -54,9 +56,10 @@ classifier — the CV and rubric directly, the profile through the timezone that
 incomparable to past ones.
 
 `app_settings.version` is a single monotonic integer covering all three. It
-increments on every save of the CV, profile, or rubric. It does **not** increment
-when sources change, because which boards are polled does not affect how a
-vacancy is judged.
+increments on every save of the CV, profile, or rubric — including the rubric
+weights, which change every computed total. It does **not** increment when
+sources change, because which boards are polled does not affect how a vacancy is
+judged.
 
 On the scores side the migration is one line:
 
@@ -84,9 +87,10 @@ CREATE TYPE source_kind AS ENUM ('ats', 'djinni', 'dou');
 
 app_settings                      -- singleton: exactly one row, enforced
   id           boolean     PRIMARY KEY DEFAULT true CHECK (id)
-  cv           text        NOT NULL
-  rubric_body  text        NOT NULL
-  profile      jsonb       NOT NULL       -- $type<Profile>()
+  cv             text        NOT NULL
+  rubric_body    text        NOT NULL
+  rubric_weights jsonb       NOT NULL     -- $type<RubricWeights>()
+  profile        jsonb       NOT NULL     -- $type<Profile>()
   version      integer     NOT NULL DEFAULT 1
   updated_at   timestamptz NOT NULL DEFAULT now()
 
@@ -154,16 +158,22 @@ Migrations are generated with `drizzle-kit generate`, as in v1.
 ```ts
 interface AppSettings {
   cv: string;
-  rubric: { version: string; body: string };   // version = String(row.version)
+  rubric: {
+    version: string;                           // String(row.version)
+    body: string;
+    weights: RubricWeights;                    // Record<keyof SubScores, number>
+  };
   profile: Profile;
   sources: SourcesConfig;                      // regrouped from enabled rows
 }
 ```
 
-Structurally identical to v1's `AppConfig`. That is deliberate: `buildPrompt()`,
-`buildSources()`, `applyHardFilters()`, and the score-writing path keep their
-current signatures. The change is confined to where the object comes from, not
-what it looks like.
+Near-identical to v1's `AppConfig`, deliberately: `buildPrompt()` reads only
+`rubric.body` (`prompt.ts:28`), so widening `Rubric` is backward-compatible
+there, and `buildSources()`, `applyHardFilters()`, and the score-writing path
+keep their current signatures.
+
+The one exception is `weightedTotal()`. See *Rubric weights* below.
 
 ### New module: `src/settings/`
 
@@ -192,6 +202,12 @@ what it looks like.
   dependency rather than adding one, and eliminates the
   `configStub as unknown as AppConfigService` cast in
   `classifier.service.spec.ts:29` and `pipeline.service.spec.ts:53`.
+- **`classifier/rubric.ts`** — `WEIGHTS` is renamed `DEFAULT_WEIGHTS` and kept
+  only as the seeder's starting value. `weightedTotal(subscores)` becomes
+  `weightedTotal(subscores, weights)`; its one caller,
+  `classifier.service.ts:62`, passes `settings.rubric.weights`. `toVerdict()` is
+  unchanged.
+
 - **`notify`** — `notifyThresholdFor(providerId)` lives on
   `app-config.service.ts:23` but only ever reads environment variables, which are
   not moving. `AppConfigService` is being deleted, so it relocates to the notify
@@ -200,6 +216,50 @@ what it looks like.
 `ApiRoot` gains `SettingsModule`. Because that module is DB-backed and has no
 filesystem dependency, the `api` service still needs no `/config` mount and
 cannot throw at boot over a missing file.
+
+### Rubric weights
+
+The five weights currently live in `src/classifier/rubric.ts` as a `const`
+summing to 100, and `weightedTotal()` divides the accumulated product by a
+hardcoded `100`. That divisor is only correct while the weights sum to exactly
+100 — an invariant that cannot survive user editing.
+
+**Totals are normalized by the actual sum rather than by 100:**
+
+```ts
+export function weightedTotal(s: SubScores, w: RubricWeights): number {
+  const sum = Object.values(w).reduce((a, b) => a + b, 0);
+  let acc = 0;
+  for (const key of Object.keys(w) as (keyof SubScores)[]) acc += s[key].score * w[key];
+  return Math.round(acc / sum);
+}
+```
+
+Only the *relative* weights have ever mattered mathematically, so normalizing
+lets a weight be raised without rebalancing the other four, keeps every total in
+0–100 so the verdict bands and the dashboard's near-miss band stay meaningful,
+and removes a "must total 100" validation rule from the form. `35/20/15/20/10`
+and `70/40/30/40/20` are the same rubric, which is correct.
+
+**The dimension keys are fixed, not editable.** They are pinned by the
+classifier's Zod output schema — `coreStack`, `seniority`, `domain`,
+`logistics`, `growth`. Weights are a fixed-key map of five numbers; adding a
+sixth dimension would mean changing the output schema and the prose anchors
+together, which is a different and larger change.
+
+```ts
+const RubricWeightsSchema = z.object({
+  coreStack: z.number().int().min(0).max(1000),
+  seniority: z.number().int().min(0).max(1000),
+  domain:    z.number().int().min(0).max(1000),
+  logistics: z.number().int().min(0).max(1000),
+  growth:    z.number().int().min(0).max(1000),
+}).refine(w => Object.values(w).some(n => n > 0), 'at least one weight must be above zero');
+```
+
+The `refine` is load-bearing: all-zero weights would divide by zero and yield
+`NaN`, which would be stored as a total and silently corrupt the score row. A
+matching `CHECK` on the column enforces the same floor at the database level.
 
 ### Incomplete-settings guard
 
@@ -216,9 +276,9 @@ experience something honest to display.
 
 | Method | Path | Body | Notes |
 |---|---|---|---|
-| GET | `/api/settings` | — | `{cv, rubricBody, profile, version, updatedAt}` |
+| GET | `/api/settings` | — | `{cv, rubricBody, rubricWeights, profile, version, updatedAt}` |
 | PUT | `/api/settings/cv` | `{cv}` | bumps `version` |
-| PUT | `/api/settings/rubric` | `{body}` | bumps `version` |
+| PUT | `/api/settings/rubric` | `{body, weights}` | validated by `RubricWeightsSchema`; bumps `version` |
 | PUT | `/api/settings/profile` | `Profile` | validated by `ProfileSchema`; bumps `version` |
 | GET | `/api/sources` | — | all rows, enabled and disabled |
 | POST | `/api/sources` | `SourceInput` | 201; 409 on duplicate |
@@ -272,7 +332,12 @@ Four sections, one per document, each owning its own Save button:
   url), an enable/disable toggle, and delete. Below it an add form whose fields
   swap on the selected `kind`.
 - **CV** — markdown textarea.
-- **Rubric** — markdown textarea, with the current `version` displayed beside it.
+- **Rubric** — markdown textarea for the prose anchors, plus five number
+  inputs for the weights. Each input shows its **effective percentage**
+  (`weight / sum`) beside the raw number, live, so the meaning of a change is
+  visible without mental arithmetic and without the form demanding a total of
+  100. The current `version` is displayed alongside. Save is blocked while every
+  weight is zero, matching the schema's `refine`.
 
 Save buttons are dirty-tracked and disabled when nothing has changed. Saving,
 saved, and error states are local to each section. No optimistic updates: PUT,
@@ -317,9 +382,11 @@ so neither can seed concurrently.
 
 1. If `app_settings` already has a row, do nothing and exit 0.
 2. Otherwise, if `/config` is mounted and readable, import through
-   `loadConfig()`.
+   `loadConfig()`. Weights are **not** in `rubric.md` and never were, so a v1
+   import takes them from `DEFAULT_WEIGHTS` — an upgrading install keeps exactly
+   the scoring behaviour it had.
 3. Otherwise insert built-in defaults — the placeholder CV and rubric text v1
-   ships.
+   ships, plus `DEFAULT_WEIGHTS`.
 4. Sources insert with `ON CONFLICT DO NOTHING`.
 
 The whole step is idempotent, so it is safe on every `docker compose up`.
@@ -352,13 +419,15 @@ Settings tab.
 
 | Suite | Runner | Coverage |
 |---|---|---|
-| Backend unit | Jest + `supertest` | Settings controllers against a stubbed repository; `toSourcesConfig()` regrouping and its enabled-filter; `SourceInputSchema` rejecting a `djinni` row carrying a `slug`; the incomplete-settings guard writing a `run_log` row instead of classifying |
+| Backend unit | Jest + `supertest` | Settings controllers against a stubbed repository; `toSourcesConfig()` regrouping and its enabled-filter; `SourceInputSchema` rejecting a `djinni` row carrying a `slug`; the incomplete-settings guard writing a `run_log` row instead of classifying; `weightedTotal()` normalizing a non-100 sum, and proportional weights (`35/20/15/20/10` vs `70/40/30/40/20`) producing identical totals; `RubricWeightsSchema` rejecting all-zero weights |
 | Backend integration | Vitest, throwaway Postgres schema | Repository CRUD; `version` incrementing atomically under concurrent updates; the unique violation mapping to 409; the seeder run twice producing exactly one row |
-| Dashboard | Vitest + Testing Library | Profile validation and save; source add, toggle, delete; dirty-state button disabling; error rendering from `message`; the first-run banner |
+| Dashboard | Vitest + Testing Library | Profile validation and save; source add, toggle, delete; dirty-state button disabling; error rendering from `message`; the first-run banner; effective-percentage recomputation as a weight changes, and Save disabled on all-zero weights |
 
 The pipeline tests that currently build a `configStub` cast to
 `AppConfigService` are rewritten to pass a plain `AppSettings` object, which is
-simpler than what they replace.
+simpler than what they replace. The existing `rubric.spec.ts` cases keep their
+expected totals by passing `DEFAULT_WEIGHTS` explicitly, so the normalization
+change is provably behaviour-preserving for the shipped defaults.
 
 ## Decisions and trade-offs
 
@@ -368,6 +437,9 @@ simpler than what they replace.
 | Version counter, not a revision log | Single-user tool; a counter answers "are these scores comparable" | Cannot reconstruct what an old settings version actually said |
 | All four documents move | Partial migration would leave two editing workflows in place | Four editors instead of one generic one |
 | Secrets stay in `.env` | Credentials do not belong in a database or an HTTP response | First-run still requires editing one file |
+| Rubric weights editable, verdict bands not | Weights affect only future scores; bands change how every stored score reads | Reweighting can cluster results just under a fixed cutoff, with no way to move the line |
+| Weights normalized, not validated to 100 | Only relative weights matter; removes a rebalancing chore from every edit | Two different-looking weight sets can be the same rubric |
+| Dimension keys fixed | They are pinned by the classifier's Zod output schema | Adding a sixth dimension is a separate, larger change |
 | Per-run DB read, no cache | One read per 30-minute tick is free; a cache spanning two containers needs LISTEN/NOTIFY | Four v1 modules are rewired |
 | `AppSettings` keeps `AppConfig`'s shape | `buildPrompt`, `buildSources`, `applyHardFilters` and the adapters stay untouched | The snapshot carries a `rubric.version` string that is really a stringified integer |
 | Flat `sources` table | The CRUD view and the enable toggle need rows, not a grouped blob | A regrouping helper between the table and `buildSources()` |
@@ -380,7 +452,8 @@ simpler than what they replace.
 ## Out of scope
 
 - Secrets management from the UI
-- Editable rubric weights
+- Editable verdict band thresholds and near-miss window
+- Adding or removing rubric dimensions
 - Settings revision history and rollback
 - Triggering a rescore after a settings change
 - Authentication and public exposure
