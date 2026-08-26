@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProfileForm } from '../src/components/ProfileForm';
 import * as api from '../src/api/settings';
@@ -144,6 +144,15 @@ describe('ProfileForm', () => {
     expect(screen.getByRole('button', { name: 'contract' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'full-time' }));
     expect(screen.getByRole('button', { name: 'full-time' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('gives the employment-type toggles a real accessible group name', () => {
+    render(<ProfileForm initial={BASE} version={1} onSaved={() => {}} />);
+
+    const group = within(screen.getByRole('group', { name: 'Allowed employment types' }));
+    for (const type of ['full-time', 'part-time', 'contract', 'internship']) {
+      expect(group.getByRole('button', { name: type })).toBeInTheDocument();
+    }
   });
 
   it('keeps an employment type that is not one of the four known values', async () => {

@@ -61,8 +61,13 @@ export function ProfileForm({ initial, version, onSaved }: Props) {
           />
 
           <div className="field">
-            <label htmlFor="employment-types">Allowed employment types</label>
-            <div className="toggles">
+            {/* The toggles are a div, not an <input> — htmlFor could not bind
+                to it. role="group" + aria-labelledby gives the set of
+                buttons a real accessible name instead of leaving a screen
+                reader to announce "full-time", "contract" ... with no
+                context for what they belong to. */}
+            <label id="employment-types-label">Allowed employment types</label>
+            <div className="toggles" role="group" aria-labelledby="employment-types-label">
               {KNOWN_EMPLOYMENT_TYPES.map((t) => (
                 <button
                   key={t} type="button" className="toggle"
