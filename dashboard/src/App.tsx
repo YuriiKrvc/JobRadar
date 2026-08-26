@@ -28,33 +28,61 @@ export function App() {
     (h) => h.source === 'settings' && h.status === 'error',
   );
 
+  const runs = health.data ?? [];
+  // The meta strip is built from what App already has: no new request.
+  const lastRun = runs.length === 0 ? 'never'
+    : new Date(runs.map((h) => h.ranAt).sort().at(-1)!).toLocaleTimeString([], {
+        hour: '2-digit', minute: '2-digit',
+      });
+  const scored = (postings.data ?? []).length;
+
   return (
-    <>
-      <h1>JobRadar</h1>
+    <div className="page">
+      <header className="masthead">
+        <div className="masthead-row">
+          <div className="masthead-brand">JobRadar</div>
+          <div className="masthead-tagline">Stop scrolling job boards. Read the shortlist.</div>
+
+          {/* Two screens do not justify a routing dependency. */}
+          <nav className="tabs" role="tablist">
+            {(['postings', 'settings'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                role="tab"
+                type="button"
+                aria-selected={tab === t}
+                className={tab === t ? 'tab tab-active' : 'tab'}
+                onClick={() => setTab(t)}
+              >
+                {t === 'postings' ? 'Postings' : 'Settings'}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <div className="masthead-rule" />
+
+        <div className="masthead-meta">
+          <span>{new Date().toLocaleDateString(undefined, {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+          })}</span>
+          <span>Last run {lastRun} · {scored} posting{scored === 1 ? '' : 's'} scored</span>
+          <span>Scoring settings v{settings.data?.version ?? '—'}</span>
+        </div>
+      </header>
 
       {settingsError && (
-        <p className="banner" role="status">
-          JobRadar is not scoring yet —{' '}
-          {settingsError.error ?? 'the last run could not read its settings'}.{' '}
-          <button type="button" onClick={() => setTab('settings')}>Finish setup</button>
-        </p>
-      )}
-
-      {/* Two screens do not justify a routing dependency. */}
-      <nav className="tabs" role="tablist">
-        {(['postings', 'settings'] as Tab[]).map((t) => (
-          <button
-            key={t}
-            role="tab"
-            type="button"
-            aria-selected={tab === t}
-            className={tab === t ? 'tab tab-active' : 'tab'}
-            onClick={() => setTab(t)}
-          >
-            {t === 'postings' ? 'Postings' : 'Settings'}
+        <div className="banner" role="status">
+          <div className="banner-label">NOT SCORING</div>
+          <p>
+            JobRadar is not scoring yet —{' '}
+            {settingsError.error ?? 'the last run could not read its settings'}.{' '}
+          </p>
+          <button type="button" className="btn btn-primary" onClick={() => setTab('settings')}>
+            Finish setup
           </button>
-        ))}
-      </nav>
+        </div>
+      )}
 
       {tab === 'settings' ? <SettingsPage settings={settings} /> : (
         <>
@@ -69,6 +97,6 @@ export function App() {
           <SourceHealth rows={health.data ?? []} />
         </>
       )}
-    </>
+    </div>
   );
 }

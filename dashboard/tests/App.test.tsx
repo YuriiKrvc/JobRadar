@@ -88,6 +88,27 @@ describe('App', () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText(/selector miss/)).toBeInTheDocument());
   });
+
+  it('mastheads the product and its promise', async () => {
+    stubFetch();
+    render(<App />);
+    expect(screen.getByText('JobRadar')).toBeInTheDocument();
+    expect(screen.getByText('Stop scrolling job boards. Read the shortlist.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Senior Node Engineer')).toBeInTheDocument());
+  });
+
+  it('shows the settings version and the last run in the meta strip', async () => {
+    stubFetch({ health: [{ source: 'djinni', status: 'ok', ranAt: '2026-08-26T08:30:00.000Z', error: null }] });
+    render(<App />);
+    expect(await screen.findByText(/Scoring settings v1/)).toBeInTheDocument();
+    expect(screen.getByText(/1 posting scored/)).toBeInTheDocument();
+  });
+
+  it('reads "never" when nothing has run yet', async () => {
+    stubFetch({ health: [], postings: [] });
+    render(<App />);
+    expect(await screen.findByText(/Last run never/)).toBeInTheDocument();
+  });
 });
 
 describe('tab navigation', () => {
