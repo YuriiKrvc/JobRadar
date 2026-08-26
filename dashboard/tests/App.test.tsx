@@ -1,14 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { App } from '../src/App';
 import type { HealthRow, PostingRow } from '../src/api/types';
+
+const DIM = { score: 0, note: 'n' };
+const SUBSCORES = {
+  coreStack: DIM, seniority: DIM, domain: DIM, logistics: DIM, growth: DIM,
+};
 
 const posting = {
   postingId: 'x:1', title: 'Senior Node Engineer', company: 'Acme',
   url: 'https://e.com/1', source: 'djinni', location: 'Remote',
   total: 82, verdict: 'STRONG', reasoning: 'r', providerId: 'p',
-  scoredAt: '2026-08-25T10:00:00.000Z', settingsVersion: '1',
+  scoredAt: '2026-08-25T10:00:00.000Z', settingsVersion: '1', subscores: SUBSCORES,
 };
 
 const SETTINGS_STUB = {
@@ -52,32 +58,40 @@ function stubFetch({
   return fetchMock;
 }
 
+function renderAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+    </MemoryRouter>,
+  );
+}
+
 beforeEach(() => { vi.restoreAllMocks(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('App', () => {
   it('shows a loading state, then the table', async () => {
     stubFetch();
-    render(<App />);
+    renderAt('/');
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Senior Node Engineer')).toBeInTheDocument());
   });
 
   it('shows the server error message when the API fails', async () => {
     vi.stubGlobal('fetch', mockFetch(() => ({ body: { error: 'db exploded' }, status: 500 })));
-    render(<App />);
+    renderAt('/');
     await waitFor(() => expect(screen.getByText(/db exploded/)).toBeInTheDocument());
   });
 
   it('refetches with a verdict filter in the query string', async () => {
     const fetchMock = stubFetch();
-    render(<App />);
+    renderAt('/');
     await waitFor(() => expect(screen.getByText('Senior Node Engineer')).toBeInTheDocument());
 
-    await userEvent.selectOptions(screen.getByLabelText(/verdict/i), 'MAYBE');
+    await userEvent.click(screen.getByRole('button', { name: /^strong$/i }));
     await waitFor(() => {
       const urls = fetchMock.mock.calls.map((c) => String(c[0]));
-      expect(urls.some((u) => u.includes('verdict=MAYBE'))).toBe(true);
+      expect(urls.some((u) => u.includes('verdict=STRONG'))).toBe(true);
     });
   });
 
@@ -85,29 +99,48 @@ describe('App', () => {
     stubFetch({
       health: [{ source: 'djinni', status: 'error', ranAt: '2026-08-25T10:00:00.000Z', error: 'selector miss' }],
     });
-    render(<App />);
+    renderAt('/');
     await waitFor(() => expect(screen.getByText(/selector miss/)).toBeInTheDocument());
   });
 });
 
-describe('tab navigation', () => {
-  beforeEach(() => {
-    stubFetch();
-  });
+describe('routing', () => {
+  beforeEach(() => { stubFetch(); });
 
-  it('shows postings first', async () => {
-    render(<App />);
+  it('renders postings at the root path', async () => {
+    renderAt('/');
     expect(screen.getByRole('tab', { name: /postings/i })).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(screen.getByText('Senior Node Engineer')).toBeInTheDocument());
   });
 
-  it('switches to settings and back', async () => {
-    render(<App />);
+  it('renders settings at /settings without a click', async () => {
+    renderAt('/settings');
+    expect(screen.getByRole('tab', { name: /settings/i })).toHaveAttribute('aria-selected', 'true');
+    await waitFor(() => expect(screen.getByRole('button', { name: /save rubric/i })).toBeInTheDocument());
+  });
 
+  it('navigates between the two routes', async () => {
+    renderAt('/');
     await userEvent.click(screen.getByRole('tab', { name: /settings/i }));
     expect(screen.getByRole('tab', { name: /settings/i })).toHaveAttribute('aria-selected', 'true');
 
     await userEvent.click(screen.getByRole('tab', { name: /postings/i }));
     expect(screen.getByRole('tab', { name: /postings/i })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('redirects an unknown path to postings', async () => {
+    renderAt('/nowhere');
+    expect(screen.getByRole('tab', { name: /postings/i })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('applies a filter taken from the initial query string', async () => {
+    const fetchMock = stubFetch();
+    renderAt('/?verdict=MAYBE');
+
+    await waitFor(() => {
+      const urls = fetchMock.mock.calls.map((c) => String(c[0]));
+      expect(urls.some((u) => u.includes('verdict=MAYBE'))).toBe(true);
+    });
   });
 });
 
@@ -119,8 +152,8 @@ describe('first-run banner', () => {
         ranAt: '2026-08-25T10:00:00.000Z', error: 'settings incomplete: no CV',
       }],
     });
-    render(<App />);
-    expect(await screen.findByRole('status')).toHaveTextContent(/finish setup/i);
+    renderAt('/');
+    expect(await screen.findByRole('alert')).toHaveTextContent(/finish setup/i);
   });
 
   it('links the banner to the settings tab', async () => {
@@ -130,17 +163,17 @@ describe('first-run banner', () => {
         ranAt: '2026-08-25T10:00:00.000Z', error: 'settings incomplete: no enabled sources',
       }],
     });
-    render(<App />);
+    renderAt('/');
 
-    await userEvent.click(await screen.findByRole('button', { name: /finish setup/i }));
-    expect(screen.getByRole('tab', { name: /settings/i })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('link', { name: /finish setup/i }))
+      .toHaveAttribute('href', '/settings');
   });
 
   it('shows no banner when settings are complete', async () => {
     stubFetch({ health: [{ source: 'ats', status: 'ok', ranAt: '2026-08-25T10:00:00.000Z', error: null }] });
-    render(<App />);
+    renderAt('/');
     await screen.findByRole('tab', { name: /postings/i });
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 
@@ -156,9 +189,9 @@ describe('settings load failure banner', () => {
         error: 'app_settings is empty — run the seeder',
       }],
     });
-    render(<App />);
+    renderAt('/');
 
-    const banner = await screen.findByRole('status');
+    const banner = await screen.findByRole('alert');
     expect(banner).toHaveTextContent(/run the seeder/i);
     expect(banner).toHaveTextContent(/finish setup/i);
   });
@@ -167,9 +200,9 @@ describe('settings load failure banner', () => {
     stubFetch({
       health: [{ source: 'settings', status: 'ok', ranAt: '2026-08-25T10:00:00.000Z', error: null }],
     });
-    render(<App />);
+    renderAt('/');
     await screen.findByRole('tab', { name: /postings/i });
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 
@@ -199,7 +232,7 @@ describe('stale badge after a save in Settings', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<App />);
+    renderAt('/');
     // The posting is scored under version 1 and current is 1: no badge.
     await screen.findByText('Senior Node Engineer');
     expect(screen.queryByRole('img', { name: /stale/i })).not.toBeInTheDocument();

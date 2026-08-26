@@ -3,6 +3,7 @@ import { saveProfile } from '../api/settings';
 import { useSave } from '../hooks/useSave';
 import { ChipInput } from './ChipInput';
 import type { ProfileInput } from '../api/types';
+import s from './settings.module.css';
 
 // ProfileSchema types these as free strings, not an enum, so these are hints
 // rather than a fixed set.
@@ -34,7 +35,7 @@ export function ProfileForm({ initial, onSaved }: Props) {
   }
 
   return (
-    <section className="settings-section">
+    <section className={s.section}>
       <h2>Profile</h2>
 
       <ChipInput
@@ -87,20 +88,20 @@ export function ProfileForm({ initial, onSaved }: Props) {
         />
       </div>
 
-      <div className="field">
+      <div className={s.field}>
         <label htmlFor="timezone">Timezone</label>
         <input id="timezone" value={draft.timezone}
           disabled={save.saving}
           onChange={(e) => set('timezone', e.target.value)} />
       </div>
 
-      <div className="settings-actions">
+      <div className={s.actions}>
         <button type="button" disabled={!dirty || save.saving}
           onClick={async () => { if (await save.run(draft)) onSaved(); }}>
           {save.saving ? 'Saving…' : 'Save profile'}
         </button>
-        {save.error && <span className="state" role="alert">{save.error}</span>}
-        {save.saved && !dirty && <span className="state">Saved</span>}
+        {save.error && <span className={s.state} role="alert">{save.error}</span>}
+        {save.saved && !dirty && <span className={s.state}>Saved</span>}
       </div>
     </section>
   );

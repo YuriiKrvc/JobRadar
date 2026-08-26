@@ -2,6 +2,19 @@ import { z } from 'zod';
 
 export const VerdictSchema = z.enum(['STRONG', 'MAYBE', 'NO']);
 
+export const DimensionSchema = z.object({
+  score: z.number().int(),
+  note: z.string(),
+});
+
+export const SubScoresSchema = z.object({
+  coreStack: DimensionSchema,
+  seniority: DimensionSchema,
+  domain: DimensionSchema,
+  logistics: DimensionSchema,
+  growth: DimensionSchema,
+});
+
 export const PostingRowSchema = z.object({
   postingId: z.string(),
   title: z.string(),
@@ -15,6 +28,7 @@ export const PostingRowSchema = z.object({
   providerId: z.string(),
   settingsVersion: z.string(),
   scoredAt: z.string(),
+  subscores: SubScoresSchema,
 });
 export type PostingRow = z.infer<typeof PostingRowSchema>;
 

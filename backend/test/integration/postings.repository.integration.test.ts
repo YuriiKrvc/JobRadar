@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { PostingsRepository } from '../../src/db/postings.repository';
+import { DashboardQueries } from '../../src/api/dashboard.queries';
 import { createDb } from '../../src/db/client';
 import { postings } from '../../src/db/schema';
 import type { RawPosting, FitVerdict } from '../../src/types';
@@ -27,7 +28,7 @@ function verdict(total: number, v: FitVerdict['verdict']): FitVerdict {
 
 describe.skipIf(!url)('PostingsRepository', () => {
   let repo: PostingsRepository;
-  let db: ReturnType<typeof createDb>;
+  let queries: DashboardQueries;
 
   beforeAll(async () => {
     db = createDb(url!);
@@ -36,6 +37,7 @@ describe.skipIf(!url)('PostingsRepository', () => {
     // transform does not emit design:paramtypes, so Nest DI cannot resolve
     // constructor types here. The class needs no container.
     repo = new PostingsRepository(db);
+    queries = new DashboardQueries(db);
   });
 
   it('reports isNew true on first upsert and false on repeat', async () => {
@@ -162,5 +164,21 @@ describe.skipIf(!url)('PostingsRepository', () => {
   it('writes run log rows', async () => {
     await repo.logRun('djinni', 'error', 0, 'selector miss');
     await repo.logRun('dou', 'ok', 12);
+  });
+
+  // The dashboard's breakdown panel reads these five dimensions, so the jsonb
+  // column has to survive the round trip with its notes intact.
+  it('returns the stored sub-scores on the dashboard row', async () => {
+    await repo.upsert(posting('x:8'));
+    await repo.insertScore('x:8', verdict(77, 'MAYBE'));
+
+    const rows = await queries.latestScores({ limit: 500 });
+    const row = rows.find((r) => r.postingId === 'x:8');
+
+    expect(row).toBeDefined();
+    expect(Object.keys(row!.subscores).sort()).toEqual(
+      ['coreStack', 'domain', 'growth', 'logistics', 'seniority'],
+    );
+    expect(row!.subscores.coreStack).toEqual({ score: 1, note: 'n' });
   });
 });

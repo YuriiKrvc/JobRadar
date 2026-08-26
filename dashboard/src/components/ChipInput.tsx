@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
+import s from './settings.module.css';
 
 interface Props {
   id: string;
@@ -36,12 +37,11 @@ export function ChipInput({ id, label, value, onChange, suggestions, disabled, h
   }
 
   return (
-    <div className="field">
+    <div className={s.field}>
       <label htmlFor={id}>{label}</label>
-      {help && <p className="field-help">{help}</p>}
-      <ul className="chips">
+      <ul className={s.chips}>
         {value.map((v) => (
-          <li key={v} className="chip">
+          <li key={v} className={s.chip}>
             {v}
             <button type="button" aria-label={`Remove ${v}`} disabled={disabled}
               onClick={() => onChange(value.filter((x) => x !== v))}>×</button>
@@ -57,7 +57,7 @@ export function ChipInput({ id, label, value, onChange, suggestions, disabled, h
         onChange={(e) => { setDraft(e.target.value); setHint(null); }}
         onKeyDown={commit}
       />
-      {hint && <p className="state" role="status">{hint}</p>}
+      {hint && <p className={s.state} role="status">{hint}</p>}
       {suggestions && (
         <datalist id={`${id}-suggestions`}>
           {suggestions.map((s) => <option key={s} value={s} />)}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { saveRubric } from '../api/settings';
 import { useSave } from '../hooks/useSave';
 import type { RubricWeights } from '../api/types';
+import s from './settings.module.css';
 
 const DIMENSIONS: (keyof RubricWeights)[] = [
   'coreStack', 'seniority', 'domain', 'logistics', 'growth',
@@ -39,7 +40,7 @@ export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
     || JSON.stringify(weights) !== initialWeightsKey;
 
   return (
-    <section className="settings-section">
+    <section className={s.section}>
       <h2>Rubric</h2>
 
       <label htmlFor="rubric">Rubric prose</label>
@@ -53,9 +54,9 @@ export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
 
       {/* Weights are normalised by their actual sum, so they need not total
           100 — the percentage beside each is what the score actually uses. */}
-      <div className="weights">
+      <div className={s.weights}>
         {DIMENSIONS.map((key) => (
-          <div className="field weight" key={key}>
+          <div className={`${s.field} ${s.weight}`} key={key}>
             <label htmlFor={`w-${key}`}>{key}</label>
             {/* step={1} so the browser rejects 3.5 in the field rather than
                 letting RubricWeightsSchema.int() turn it into a 400. */}
@@ -67,7 +68,7 @@ export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
                 ...w, [key]: e.target.value === '' ? 0 : Number(e.target.value),
               }))}
             />
-            <span className="pct" data-testid={`pct-${key}`}>
+            <span className={s.pct} data-testid={`pct-${key}`}>
               {allZero ? '—' : `${Math.round((weights[key] / sum) * 100)}%`}
             </span>
           </div>
@@ -75,10 +76,10 @@ export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
       </div>
 
       {allZero && (
-        <p className="state">At least one weight must be above zero.</p>
+        <p className={s.state}>At least one weight must be above zero.</p>
       )}
 
-      <div className="settings-actions">
+      <div className={s.actions}>
         <button
           type="button"
           disabled={!dirty || allZero || save.saving}
@@ -86,8 +87,8 @@ export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
         >
           {save.saving ? 'Saving…' : 'Save rubric'}
         </button>
-        {save.error && <span className="state" role="alert">{save.error}</span>}
-        {save.saved && !dirty && <span className="state">Saved</span>}
+        {save.error && <span className={s.state} role="alert">{save.error}</span>}
+        {save.saved && !dirty && <span className={s.state}>Saved</span>}
       </div>
     </section>
   );

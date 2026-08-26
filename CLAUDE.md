@@ -264,19 +264,55 @@ Two upgrade-path properties of the schema-0003 migration:
   recover from the UI (`PUT /api/settings/profile` is `.strict()` and demands
   both arrays). Integration tests cover a v1-shaped blob through both paths.
 
-### dashboard/ — two tabs, one of them a write surface
+### dashboard/ — two routes, one of them a write surface
 
-Plain React 19, no router, no state library, no data-fetching library — a
-`useApi` hook over `fetch`, a `useSave` hook for the writes, and a two-tab
-`useState` toggle between Postings and Settings. Two screens do not justify a
-routing dependency; a third might. The Settings tab has four sections (CV,
-profile, sources, rubric), each with its own dirty-tracked Save button and its
-own error state, matching the three separate document `PUT`s — that is what
-makes "one version bump per save" fall out of the design instead of needing
-diff logic.
+The visual design of both pages is specified in `docs/dashboard design/`;
+follow it rather than inventing layout.
 
-Settings state is owned by `App`, not by `SettingsPage`, so the Postings tab's
-stale-score badge sees a save immediately and switching tabs does not refetch.
+React 19 with `react-router-dom`, no state library and no data-fetching
+library — a `useApi` hook over `fetch` and a `useSave` hook for the writes.
+`App` is the layout: it owns all three fetches, renders the masthead, and
+publishes `{postings, health, settings, ui, setUi}` through
+`DashboardDataContext`. `/` renders `pages/PostingsPage`, `/settings` renders
+`pages/SettingsPage`, anything else redirects to `/`. A context rather than
+`<Outlet context>` because a component test can then wrap one component in a
+provider instead of standing up a router.
+
+`BrowserRouter` means real paths, so **the production static host must rewrite
+unknown paths to `/index.html`** or a hard refresh on `/settings` 404s. Vite's
+dev server already does.
+
+**Postings state lives entirely in the query string.** `src/api/filters-url.ts`
+is the only thing that knows the encoding: `parseFilters` / `toSearchParams`
+for the URL, `toApiFilters` for the request. There is no mirrored `useState`,
+so Back and Forward step through filter changes. Two consequences worth
+knowing: the URL stores a *relative* window (`since=7d`), never a computed
+date, so a bookmark does not silently freeze as it ages; and the min-score
+slider commits on release rather than on input, because a range input fires per
+pixel of drag and each commit would push a history entry.
+
+Everything derived — day buckets, relative time, near miss, stale, rejection
+sentences — lives in `src/postings/derive.ts`, is pure, and **takes `now` as an
+argument**. No hidden clock is what makes day bucketing testable. The masthead's
+"N new" comes from the same `groupByDay` call the feed uses, so the two cannot
+disagree.
+
+Presentation is CSS Modules over one global token file. `src/styles/tokens.css`
+is the **only** file permitted to define `:root` custom properties or style bare
+element selectors; everything else is a `*.module.css` beside its component.
+The Settings surface shares one scoped `components/settings.module.css` rather
+than five near-identical modules — `section`, `actions`, `field` and `state`
+mean the same thing in each, and duplicating them would be the old global sheet
+under a new name. `dashboard/tsconfig.json` must keep `vite/client` in its
+`types` array or CSS-module imports stop typechecking.
+
+The Settings page has four sections (CV, profile, sources, rubric), each with
+its own dirty-tracked Save button and its own error state, matching the three
+separate document `PUT`s — that is what makes "one version bump per save" fall
+out of the design instead of needing diff logic.
+
+Settings state is owned by `App`, not by `SettingsPage`, so the Postings page's
+stale-score badge sees a save immediately and changing route does not refetch.
 `SettingsPage` gates on `data`, never on `loading`: a reload triggered by one
 section's save would otherwise unmount the other three mid-edit and discard
 whatever was typed into them. No optimistic updates — `PUT`, then refetch; on
@@ -300,6 +336,13 @@ Response shapes are declared twice on purpose — `backend/src/api/api.schema.ts
 `dashboard/src/api/types.ts` (plain types). Changing one means changing the
 other. It is the accepted cost of keeping the projects independent; a shared
 types package is a reasonable thing to propose, but not to introduce unasked.
+
+A posting row carries `subscores` — the five rubric dimensions, each a
+`{score, note}` on the same 0-100 scale as `total` — which the dashboard's
+breakdown panel renders as bars. Because the two projects deploy separately, a
+dashboard newer than its API sees rows without that field: `LedgerRow` treats a
+missing `subscores` as "no breakdown available" rather than throwing. Deploy the
+API first.
 
 ### Docker
 
