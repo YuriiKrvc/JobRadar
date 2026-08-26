@@ -72,6 +72,21 @@ export class SettingsRepository {
     }
   }
 
+  /**
+   * Replaces the row's whole document, `enabled` excepted — the checkbox owns
+   * that through PATCH, so a form save cannot silently re-enable a paused
+   * board.
+   */
+  async replaceSource(id: string, input: SourceInput): Promise<SourceRow | null> {
+    try {
+      const [row] = await this.db
+        .update(sources).set(input).where(eq(sources.id, id)).returning();
+      return row ?? null;
+    } catch (err) {
+      throw unwrapDriverError(err);
+    }
+  }
+
   async setSourceEnabled(id: string, enabled: boolean): Promise<SourceRow | null> {
     const [row] = await this.db
       .update(sources).set({ enabled }).where(eq(sources.id, id)).returning();

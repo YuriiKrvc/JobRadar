@@ -20,6 +20,7 @@ function fakeRepo() {
     listSources: jest.fn(async () => [row(), row({ id: 'other', enabled: false })]),
     addSource: jest.fn(async () => row()),
     setSourceEnabled: jest.fn(async (): Promise<ReturnType<typeof row> | null> => row({ enabled: false })),
+    replaceSource: jest.fn(async (): Promise<ReturnType<typeof row> | null> => row()),
     deleteSource: jest.fn(async () => true),
   };
 }
@@ -131,6 +132,65 @@ describe('PATCH /api/sources/:id', () => {
     await request(app.getHttpServer())
       .patch('/api/sources/not-a-uuid').send({ enabled: true }).expect(400);
     expect(repo.setSourceEnabled).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
+describe('PUT /api/sources/:id', () => {
+  const input = {
+    name: 'Acme', url: 'https://acme.com/careers',
+    selectors: { item: 'li.opening', link: 'a.t' },
+    blockedTitleWords: [], blockedDescriptionWords: [],
+  };
+
+  it('replaces a row and returns it', async () => {
+    const { app, repo } = await build();
+    const res = await request(app.getHttpServer())
+      .put(`/api/sources/${ID}`).send(input).expect(200);
+
+    expect(repo.replaceSource).toHaveBeenCalledWith(ID, input);
+    expect(res.body.source.id).toBe(ID);
+    await app.close();
+  });
+
+  it('404s when no row has that id', async () => {
+    const repo = fakeRepo();
+    repo.replaceSource = jest.fn(async () => null);
+    const { app } = await build(repo);
+    await request(app.getHttpServer())
+      .put(`/api/sources/${ID}`).send(input).expect(404);
+    await app.close();
+  });
+
+  it('409s naming the URL when the url collides', async () => {
+    const repo = fakeRepo();
+    repo.replaceSource = jest.fn(async () => {
+      throw Object.assign(new Error('dup'), { code: '23505', constraint_name: 'sources_url_uniq' });
+    });
+    const { app } = await build(repo);
+    const res = await request(app.getHttpServer())
+      .put(`/api/sources/${ID}`).send(input).expect(409);
+    expect(res.body.message).toBe('Another source already uses that URL');
+    await app.close();
+  });
+
+  it('409s naming the name when the name collides', async () => {
+    const repo = fakeRepo();
+    repo.replaceSource = jest.fn(async () => {
+      throw Object.assign(new Error('dup'), { code: '23505', constraint_name: 'sources_name_uniq' });
+    });
+    const { app } = await build(repo);
+    const res = await request(app.getHttpServer())
+      .put(`/api/sources/${ID}`).send(input).expect(409);
+    expect(res.body.message).toBe('Another source already uses that name');
+    await app.close();
+  });
+
+  it('400s a non-uuid id before touching the repository', async () => {
+    const { app, repo } = await build();
+    await request(app.getHttpServer())
+      .put('/api/sources/not-a-uuid').send(input).expect(400);
+    expect(repo.replaceSource).not.toHaveBeenCalled();
     await app.close();
   });
 });

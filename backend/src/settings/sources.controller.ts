@@ -1,6 +1,6 @@
 import {
   Body, ConflictException, Controller, Delete, Get, HttpCode,
-  NotFoundException, Param, ParseUUIDPipe, Patch, Post,
+  NotFoundException, Param, ParseUUIDPipe, Patch, Post, Put,
 } from '@nestjs/common';
 import { SettingsRepository } from './settings.repository';
 import { ZodValidationPipe } from '../api/zod-validation.pipe';
@@ -8,6 +8,22 @@ import { EnabledBodySchema, SourceInputSchema, type SourceInput } from './schema
 
 /** Postgres unique_violation. */
 const UNIQUE_VIOLATION = '23505';
+
+/**
+ * The `sources` table has two unique constraints — `sources_url_uniq` and
+ * `sources_name_uniq` — so a bare 23505 is ambiguous. Both POST and PUT map
+ * through here so a violation always names which one collided.
+ */
+function conflictOf(err: unknown): ConflictException | null {
+  const e = err as { code?: string; constraint_name?: string; constraint?: string };
+  if (e.code !== UNIQUE_VIOLATION) return null;
+  const constraint = e.constraint_name ?? e.constraint ?? '';
+  return new ConflictException(
+    constraint.includes('name')
+      ? 'Another source already uses that name'
+      : 'Another source already uses that URL',
+  );
+}
 
 @Controller('api/sources')
 export class SourcesController {
@@ -24,11 +40,23 @@ export class SourcesController {
     try {
       return { source: await this.repo.addSource(input) };
     } catch (err) {
-      if ((err as { code?: string }).code === UNIQUE_VIOLATION) {
-        throw new ConflictException('That source is already configured');
-      }
-      throw err;
+      throw conflictOf(err) ?? err;
     }
+  }
+
+  @Put(':id')
+  async replace(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(SourceInputSchema)) input: SourceInput,
+  ) {
+    let source;
+    try {
+      source = await this.repo.replaceSource(id, input);
+    } catch (err) {
+      throw conflictOf(err) ?? err;
+    }
+    if (!source) throw new NotFoundException('No such source');
+    return { source };
   }
 
   @Patch(':id')
