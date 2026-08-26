@@ -150,8 +150,9 @@ approximated:
 
 ### Typeface
 
-Ten Source Serif 4 woff2 subsets (regular and italic × latin, latin-ext,
-cyrillic, cyrillic-ext, greek, vietnamese) are extracted from the bundle into
+Twelve Source Serif 4 woff2 files, carrying the eighteen `@font-face` rules the
+source stylesheet declares (400, 600 and 400-italic × latin, latin-ext,
+cyrillic, cyrillic-ext, greek, vietnamese), are extracted from the bundle into
 `dashboard/public/fonts/` and declared with the same `unicode-range` blocks the
 source stylesheet uses, so the browser fetches only the subsets a page needs.
 Cyrillic is included: company names and locations are frequently Ukrainian.
@@ -201,6 +202,10 @@ Save button — then a 1px rule, then the failure block, then its children.
 
 The failure block reads: **Save failed.** *{message}* Nothing was written and your
 edits are still here — try again.
+
+Each section renders as `role="region"` named by its own heading
+(`aria-labelledby`). With four buttons reading "Save" on one page, the region is
+what lets a screen-reader user — and a test — address one section among four.
 
 Section headlines and blurbs:
 
@@ -405,7 +410,7 @@ meaning.
 
 | File | Change |
 |---|---|
-| `dashboard/public/fonts/*.woff2` | new — ten Source Serif 4 subsets extracted from the design bundle |
+| `dashboard/public/fonts/*.woff2` | new — twelve Source Serif 4 files extracted from the design bundle |
 | `dashboard/src/styles.css` | rewritten — tokens, `@font-face`, base, ported component classes, page-specific classes |
 | `dashboard/src/App.tsx` | masthead, tabs, rule, meta strip, magenta first-run banner |
 | `dashboard/src/components/SettingsSection.tsx` | new — header, blurb, state chip, Save button, rule, failure block |
