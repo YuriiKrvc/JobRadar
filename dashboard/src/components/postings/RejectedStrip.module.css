@@ -1,0 +1,24 @@
+.strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 0;
+  font-size: 13.5px;
+  color: var(--ink-62);
+  border-bottom: 1px solid var(--ink-10);
+  flex-wrap: wrap;
+}
+
+.toggle {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-accent-700);
+  border-bottom: 1px solid currentColor;
+  cursor: pointer;
+}
+
+.rows { margin-top: 4px; }

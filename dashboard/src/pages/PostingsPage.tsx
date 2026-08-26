@@ -5,6 +5,7 @@ import { isHardFiltered } from '../postings/derive';
 import { Filters } from '../components/postings/Filters';
 import { PostingsFeed } from '../components/postings/PostingsFeed';
 import { EmptyState } from '../components/postings/EmptyState';
+import { RejectedStrip } from '../components/postings/RejectedStrip';
 import { SourceHealth } from '../components/SourceHealth';
 import s from './PostingsPage.module.css';
 
@@ -44,6 +45,14 @@ export function PostingsPage() {
           weights={settings.data?.rubricWeights ?? null}
           now={now}
           descending={ui.sort === 'desc'}
+        />
+      )}
+
+      {ready && (
+        <RejectedStrip
+          rows={rows.filter(isHardFiltered)}
+          currentVersion={settings.data?.version ?? null}
+          now={now}
         />
       )}
 
