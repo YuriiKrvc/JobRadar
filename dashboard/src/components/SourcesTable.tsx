@@ -1,33 +1,25 @@
-import { useState } from 'react';
-import { addSource, deleteSource, fetchSources, toggleSource } from '../api/settings';
+import { Fragment, useState } from 'react';
+import { addSource, deleteSource, fetchSources, toggleSource, updateSource } from '../api/settings';
 import { useApi } from '../hooks/useApi';
 import { useSave } from '../hooks/useSave';
-import type { SourceInput, SourceKind, SourceRow } from '../api/types';
+import { SourceForm } from './SourceForm';
+import type { SourceInput, SourceRow } from '../api/types';
 
-const BOARDS = ['greenhouse', 'lever', 'ashby'] as const;
-
-function identity(r: SourceRow): string {
-  return r.kind === 'ats' ? `${r.board}:${r.slug}` : (r.url ?? '');
+function toInput(r: SourceRow): SourceInput {
+  return {
+    name: r.name, url: r.url, selectors: r.selectors,
+    blockedTitleWords: r.blockedTitleWords,
+    blockedDescriptionWords: r.blockedDescriptionWords,
+  };
 }
 
 export function SourcesTable() {
   const sources = useApi(() => fetchSources());
-
-  const [kind, setKind] = useState<SourceKind>('ats');
-  const [board, setBoard] = useState<(typeof BOARDS)[number]>('greenhouse');
-  const [slug, setSlug] = useState('');
-  const [url, setUrl] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
 
   const add = useSave<SourceInput>(addSource);
+  const edit = useSave<{ id: string; input: SourceInput }>(({ id, input }) => updateSource(id, input));
   const mutate = useSave<() => Promise<unknown>>((fn) => fn());
-
-  async function submit() {
-    const input: SourceInput = kind === 'ats'
-      ? { kind: 'ats', board, slug }
-      : { kind, url };
-
-    if (await add.run(input)) sources.reload();
-  }
 
   return (
     <section className="settings-section">
@@ -40,77 +32,72 @@ export function SourcesTable() {
         : (
           <table>
             <thead>
-              <tr><th>On</th><th>Kind</th><th>Identity</th><th /></tr>
+              <tr><th>On</th><th>Name</th><th>URL</th><th /><th /></tr>
             </thead>
             <tbody>
               {(sources.data ?? []).map((r) => (
-                <tr key={r.id} className={r.enabled ? undefined : 'row-disabled'}>
-                  <td>
-                    <input
-                      type="checkbox" checked={r.enabled}
-                      aria-label={`Enable ${identity(r)}`}
-                      onChange={async () => {
-                        if (await mutate.run(() => toggleSource(r.id, !r.enabled))) sources.reload();
-                      }}
-                    />
-                  </td>
-                  <td>{r.kind}</td>
-                  <td>{identity(r)}</td>
-                  <td>
-                    <button type="button" onClick={async () => {
-                      if (await mutate.run(() => deleteSource(r.id))) sources.reload();
-                    }}>Delete</button>
-                  </td>
-                </tr>
+                <Fragment key={r.id}>
+                  <tr className={r.enabled ? undefined : 'row-disabled'}>
+                    <td>
+                      <input
+                        type="checkbox" checked={r.enabled}
+                        aria-label={`Enable ${r.name}`}
+                        onChange={async () => {
+                          if (await mutate.run(() => toggleSource(r.id, !r.enabled))) sources.reload();
+                        }}
+                      />
+                    </td>
+                    <td>{r.name}</td>
+                    <td>{r.url}</td>
+                    <td>
+                      <button type="button" onClick={() => setEditing(editing === r.id ? null : r.id)}>
+                        Edit
+                      </button>
+                    </td>
+                    <td>
+                      <button type="button" onClick={async () => {
+                        if (await mutate.run(() => deleteSource(r.id))) sources.reload();
+                      }}>Delete</button>
+                    </td>
+                  </tr>
+                  {editing === r.id && (
+                    <tr>
+                      <td colSpan={5}>
+                        <SourceForm
+                          // Remount on identity change so the draft is re-seeded
+                          // from the row the user actually clicked.
+                          key={r.id}
+                          initial={toInput(r)}
+                          submitLabel="Save source"
+                          saving={edit.saving}
+                          error={edit.error}
+                          onCancel={() => setEditing(null)}
+                          onSubmit={async (input) => {
+                            // Close only on success: a rejected save must keep
+                            // the form and the user's typing.
+                            if (await edit.run({ id: r.id, input })) {
+                              setEditing(null);
+                              sources.reload();
+                            }
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
         )}
 
-      {/* Identity is immutable: postings.id derives from board:slug, so a typo
-          is fixed by delete-and-re-add, not by editing in place. */}
-      <div className="add-source">
-        <div className="field">
-          <label htmlFor="source-kind">Kind</label>
-          <select id="source-kind" value={kind} disabled={add.saving}
-            onChange={(e) => setKind(e.target.value as SourceKind)}>
-            <option value="ats">ats</option>
-            <option value="djinni">djinni</option>
-            <option value="dou">dou</option>
-          </select>
-        </div>
-
-        {kind === 'ats' ? (
-          <>
-            <div className="field">
-              <label htmlFor="source-board">Board</label>
-              <select id="source-board" value={board} disabled={add.saving}
-                onChange={(e) => setBoard(e.target.value as (typeof BOARDS)[number])}>
-                {BOARDS.map((b) => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="source-slug">Slug</label>
-              <input id="source-slug" value={slug} disabled={add.saving}
-                onChange={(e) => setSlug(e.target.value)} />
-            </div>
-          </>
-        ) : (
-          <div className="field">
-            <label htmlFor="source-url">URL</label>
-            <input id="source-url" value={url} disabled={add.saving}
-              onChange={(e) => setUrl(e.target.value)} />
-          </div>
-        )}
-
-        <div className="settings-actions">
-          <button type="button" disabled={add.saving} onClick={submit}>
-            {add.saving ? 'Adding…' : 'Add source'}
-          </button>
-          {add.error && <span className="state" role="alert">{add.error}</span>}
-          {mutate.error && <span className="state" role="alert">{mutate.error}</span>}
-        </div>
-      </div>
+      <h3>Add a source</h3>
+      <SourceForm
+        submitLabel="Add source"
+        saving={add.saving}
+        error={add.error}
+        onSubmit={async (input) => { if (await add.run(input)) sources.reload(); }}
+      />
+      {mutate.error && <p className="state" role="alert">{mutate.error}</p>}
     </section>
   );
 }

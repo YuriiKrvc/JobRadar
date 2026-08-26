@@ -34,6 +34,23 @@ it('omits blank optional selectors rather than sending empty strings', async () 
   expect(onSubmit).toHaveBeenCalledWith(EXISTING);
 });
 
+it('omits an optional selector cleared by the user, not just one left blank', async () => {
+  // EXISTING.selectors.detail starts populated ('div.jd'). Clearing it must
+  // remove the key entirely: sending '' would trip the backend's
+  // SelectorsSchema.min(1) and turn a routine re-tune into a 400.
+  const onSubmit = vi.fn();
+  render(<SourceForm initial={EXISTING} submitLabel="Save" saving={false} error={null} onSubmit={onSubmit} />);
+  await userEvent.clear(screen.getByLabelText('Description container (posting page)'));
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+  expect(onSubmit).toHaveBeenCalledWith({
+    ...EXISTING,
+    selectors: { item: 'li.opening', link: 'a.t' },
+  });
+  const [submitted] = onSubmit.mock.calls.at(-1)!;
+  expect(submitted.selectors).not.toHaveProperty('detail');
+});
+
 it('pre-fills every field from initial', () => {
   render(<SourceForm initial={EXISTING} submitLabel="Save" saving={false} error={null} onSubmit={() => {}} />);
   expect(screen.getByLabelText('Name')).toHaveValue('Acme');
