@@ -172,6 +172,31 @@ describe('ProfileForm', () => {
     ));
   });
 
+  it('adds a custom employment type through the add input', async () => {
+    const save = vi.spyOn(api, 'saveProfile').mockResolvedValue(4);
+    render(<ProfileForm initial={BASE} version={1} onSaved={() => {}} />);
+
+    await userEvent.type(screen.getByPlaceholderText(/add an employment type/i), 'b2b{Enter}');
+    expect(screen.getByText('b2b')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /^Save/ }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ allowedEmploymentTypes: ['full-time', 'b2b'] }),
+    ));
+  });
+
+  it('refuses a duplicate employment type instead of adding it twice', async () => {
+    render(<ProfileForm initial={BASE} version={1} onSaved={() => {}} />);
+
+    const input = screen.getByPlaceholderText(/add an employment type/i);
+    await userEvent.type(input, 'full-time{Enter}');
+
+    expect(screen.getByText(/"full-time" is already in the list/i)).toBeInTheDocument();
+    // Still exactly one full-time toggle button — no duplicate chip was added.
+    expect(screen.getAllByText('full-time')).toHaveLength(1);
+  });
+
   it('shows the one-way-door warning about removing a blocked word', () => {
     render(<ProfileForm initial={BASE} version={1} onSaved={() => {}} />);
     expect(screen.getByText('ONE-WAY DOOR')).toBeInTheDocument();

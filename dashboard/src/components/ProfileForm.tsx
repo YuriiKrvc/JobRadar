@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import { saveProfile } from '../api/settings';
 import { useSave } from '../hooks/useSave';
 import { ChipInput } from './ChipInput';
@@ -15,6 +15,8 @@ interface Props {
 
 export function ProfileForm({ initial, version, onSaved }: Props) {
   const [draft, setDraft] = useState<ProfileInput>(initial);
+  const [employmentDraft, setEmploymentDraft] = useState('');
+  const [employmentHint, setEmploymentHint] = useState<string | null>(null);
 
   // Compare by VALUE, not identity: `initial` is a fresh object on every
   // /api/settings fetch, so keying the re-seed on identity would reset this
@@ -39,6 +41,27 @@ export function ProfileForm({ initial, version, onSaved }: Props) {
     set('allowedEmploymentTypes', draft.allowedEmploymentTypes.includes(type)
       ? draft.allowedEmploymentTypes.filter((t) => t !== type)
       : [...draft.allowedEmploymentTypes, type]);
+  }
+
+  // Same commit idiom as ChipInput: Enter, trim, refuse a duplicate with a
+  // visible hint, clear only on success. A custom value (e.g. "b2b") is not
+  // in the known four, so it renders through the existing custom-chip path
+  // with no further work.
+  function commitEmployment(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+
+    const next = employmentDraft.trim();
+    if (next === '') return;
+
+    if (draft.allowedEmploymentTypes.includes(next)) {
+      setEmploymentHint(`"${next}" is already in the list.`);
+      return;
+    }
+
+    setEmploymentHint(null);
+    setEmploymentDraft('');
+    set('allowedEmploymentTypes', [...draft.allowedEmploymentTypes, next]);
   }
 
   return (
@@ -93,6 +116,16 @@ export function ProfileForm({ initial, version, onSaved }: Props) {
                 ))}
               </ul>
             )}
+            <input
+              id="employment-type-add" className="input chip-input"
+              aria-labelledby="employment-types-label"
+              value={employmentDraft}
+              placeholder="Add an employment type, then Enter"
+              disabled={save.saving}
+              onChange={(e) => { setEmploymentDraft(e.target.value); setEmploymentHint(null); }}
+              onKeyDown={commitEmployment}
+            />
+            {employmentHint && <p className="state" role="status">{employmentHint}</p>}
           </div>
         </div>
 
