@@ -189,8 +189,10 @@ Deleted: `src/sources/ats.ts`, `djinni.ts`, `dou.ts` and their specs, plus the
 five fixtures that only they used — `test/fixtures/greenhouse-acme.json`,
 `lever-acme.json`, `ashby-acme.json`, `djinni-list.html`, `dou-list.html`.
 
-**Dashboard** — `src/api/types.ts`, `src/api/sources.ts`, and the source form and
-profile blocklist fields in `src/settings/`.
+**Dashboard** — `src/api/types.ts`, `src/api/settings.ts` (the sources calls live
+there alongside the settings ones), and, in `src/components/`,
+`SourceForm.tsx`, `SourcesTable.tsx`, `SourceHealth.tsx`, `ChipInput.tsx` and
+the blocklist fields in `ProfileForm.tsx`.
 
 ## How to verify it works
 

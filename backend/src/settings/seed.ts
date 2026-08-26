@@ -46,9 +46,11 @@ export async function seed(db: Database, configDir: string): Promise<SeedOutcome
   // misconfiguration and should still fail loudly via loadConfig.
   const file: FileConfig | null = existsSync(join(configDir, 'cv.md')) ? loadConfig(configDir) : null;
 
-  // The guard and the insert are one transaction. Split, a settings insert
-  // that landed after a concurrent one would leave every later run returning
-  // 'already-present' and exiting 0 forever, behind a healthy-looking stack.
+  // The guard and the insert are one transaction, which is what makes
+  // guard-then-insert atomic: either the row is absent and this seeds it, or
+  // it is present and nothing is written. Without the transaction a failure
+  // between the two statements could leave the row inserted but the seed
+  // reported as incomplete, or a partial write visible to a concurrent reader.
   return db.transaction(async (tx): Promise<SeedOutcome> => {
     const existing = await tx.select({ id: appSettings.id }).from(appSettings).limit(1);
     if (existing.length > 0) return 'already-present';
