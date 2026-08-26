@@ -28,6 +28,8 @@
 
 .state { padding: 2rem 0; color: var(--ink-55); }
 
+.fieldHelp { margin: 0; font-size: 0.8rem; opacity: 0.75; }
+
 /* ChipInput */
 .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; list-style: none; padding: 0; margin: 0; }
 

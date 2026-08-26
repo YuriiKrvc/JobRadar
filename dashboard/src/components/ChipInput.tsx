@@ -39,6 +39,7 @@ export function ChipInput({ id, label, value, onChange, suggestions, disabled, h
   return (
     <div className={s.field}>
       <label htmlFor={id}>{label}</label>
+      {help && <p className={s.fieldHelp}>{help}</p>}
       <ul className={s.chips}>
         {value.map((v) => (
           <li key={v} className={s.chip}>

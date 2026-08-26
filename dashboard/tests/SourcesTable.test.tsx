@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SourcesTable } from '../src/components/SourcesTable';
+import s from '../src/components/settings.module.css';
 
 const ROW = {
   id: 'u1', name: 'Acme', url: 'https://acme.com/careers',
@@ -51,7 +52,9 @@ it('renders a disabled row with the row-disabled class', async () => {
   mockFetch([{ ...ROW, enabled: false }], () => json({}));
   render(<SourcesTable />);
   const cell = await screen.findByText('Acme');
-  expect(cell.closest('tr')).toHaveClass('row-disabled');
+  // The module hashes the class name, so assert against the imported binding
+  // rather than the authored string.
+  expect(cell.closest('tr')).toHaveClass(String(s.rowDisabled));
 });
 
 it('toggles a source and reloads', async () => {
