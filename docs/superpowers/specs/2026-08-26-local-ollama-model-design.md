@@ -111,8 +111,13 @@ classification until Ollama is told to listen more widely:
 launchctl setenv OLLAMA_HOST 0.0.0.0   # macOS; then restart Ollama
 ```
 
-This is the single most likely cause of a migration that appears broken, so it
-is a required setup step in the README rather than a troubleshooting footnote.
+This is one of the most likely causes of a migration that appears broken, so
+it is a required setup step in the README rather than a troubleshooting
+footnote. It is not the only one: a too-small `OLLAMA_CONTEXT_LENGTH` silently
+truncates the prompt from the front instead of failing the request, which is
+arguably worse — it produces a plausible, schema-valid score rather than a
+loud connection error — so the README documents both as required setup, not
+just this one.
 
 It also means Ollama accepts connections from the local network while set. That
 warning belongs beside it, in the same spirit as the existing note that `db`'s
@@ -182,8 +187,13 @@ Two knobs follow from this and must be understood together:
   `NotifyConfig.thresholdFor` (`notify.config.ts:12`) uppercases the id and
   replaces every non-alphanumeric character, so the `.` in `3.1` becomes `_` and
   the `:` and `-` do too. Any existing `NOTIFY_THRESHOLD_*` tuned for Anthropic
-  keeps applying to the rows it was tuned for, and continues to be used if the
-  deployment ever falls back.
+  simply stops being read once the provider switches — `dispatchNotifications`
+  resolves a single threshold from the *current* provider id and applies it as
+  a bare `scores.total >= minTotal` filter with no `providerId` predicate, so
+  it is evaluated against every pending score regardless of which provider
+  produced it. Setting the new local threshold lower than the old Anthropic one
+  therefore re-evaluates the entire backlog of previously-below-threshold
+  Anthropic-scored postings and can notify all of them on the next tick.
 - `app_settings.version` does **not** bump. It bumps on a CV, profile or rubric
   save, because all three feed the classifier's prompt. Which model reads that
   prompt is deployment config, and the stale-score badge tracks settings

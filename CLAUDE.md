@@ -145,8 +145,12 @@ config at module construction:
   `LLM_TIMEOUT_MS` (default 120000, `resolveTimeoutMs` falls back on anything
   non-positive because `AbortSignal.timeout(NaN)` aborts instantly) — the
   pipeline awaits classification inline, so an un-timed-out hang stalls the
-  whole tick. An abort leaves the posting unscored, which the dedup gate
-  retries next tick.
+  whole tick. `ClassifierService.classify` distinguishes an abort from a parse
+  failure and does not send the repair-prompt retry for an abort, since there
+  is no "previous response" to correct — a genuinely unresponsive model costs
+  one `LLM_TIMEOUT_MS` per posting, not two. A model that answers but returns
+  unparsable JSON twice still costs up to two round trips serially. Either way
+  the posting is left unscored, which the dedup gate retries next tick.
 - `BUILD_SOURCE` — a factory taking **one** `SourceSpec` and returning one
   `JobSource`. `PipelineService` calls it once per enabled source, inside the
   loop. Per-spec rather than per-run because the pipeline needs each source's
