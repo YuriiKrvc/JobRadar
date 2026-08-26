@@ -136,10 +136,15 @@ erroring: a listing page's markup usually contains one or two blocks that match
 the item selector without being postings.
 
 Posting ids are `src:<source uuid>:<externalId>`, where `externalId` is the
-posting URL's pathname with any trailing slash removed, plus its query string.
-The query string is not optional: a board that addresses postings as
-`/job?id=42` would otherwise collapse all of them onto one id and exactly one
-would ever be scored. Extracting a numeric id was considered and rejected — the
+posting URL's pathname with any trailing slash removed, plus its query string
+minus referrer parameters (`from`, `ref`, `utm_*`, and the like). The query
+string is not optional: a board that addresses postings as `/job?id=42` would
+otherwise collapse all of them onto one id and exactly one would ever be
+scored. But it cannot survive unfiltered either — DOU's listing links carry
+`from=list_hot`, `from=list_regular`, and so on for the same vacancy, which
+would otherwise produce a different posting id, and a second trip through the
+classifier, per listing block a link was shown in. Extracting a numeric id was
+considered and rejected — the
 boards in play spell theirs too differently for one rule (`/jobs/123-title/`,
 `/careers/senior-node`, `?id=42`), and a wrong extraction silently merges two
 postings, which is worse than an id that carries some slug text. Keying on the

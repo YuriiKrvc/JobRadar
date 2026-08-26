@@ -8,13 +8,30 @@ function clean(text: string): string {
 }
 
 /**
+ * Parameters that record how a visitor arrived rather than which posting they
+ * arrived at. DOU's listing links carry `from=list_hot`, so the same vacancy
+ * reached from two listing blocks would otherwise produce two posting ids and
+ * be classified twice — the dedup gate is keyed on the id.
+ */
+const TRACKING_PARAM = /^(?:from|ref|referrer|source|fbclid|gclid|msclkid|mc_cid|mc_eid|utm_[a-z_]*)$/i;
+
+/**
  * A stable per-source identifier for a posting. The pathname alone is not
  * enough: a board that addresses postings as `/job?id=42` would collapse every
- * posting onto one id and the pipeline would score exactly one of them.
+ * posting onto one id and the pipeline would score exactly one of them. So the
+ * query string survives, minus the parameters that identify a referrer rather
+ * than a posting.
  */
 export function externalIdFrom(url: string): string {
   const u = new URL(url);
-  return `${u.pathname.replace(/\/+$/, '')}${u.search}`;
+
+  // Snapshot the keys before deleting: URLSearchParams iteration is live.
+  for (const key of [...u.searchParams.keys()]) {
+    if (TRACKING_PARAM.test(key)) u.searchParams.delete(key);
+  }
+
+  const search = u.searchParams.toString();
+  return `${u.pathname.replace(/\/+$/, '')}${search === '' ? '' : `?${search}`}`;
 }
 
 export function createCustomSource(spec: SourceSpec, fetchFn: FetchFn = fetch): JobSource {

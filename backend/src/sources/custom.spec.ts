@@ -112,6 +112,31 @@ describe('externalIdFrom', () => {
   it('keeps the query string, because some boards put the id there', () => {
     expect(externalIdFrom('https://acme.com/job?id=42')).toBe('/job?id=42');
   });
+
+  it('drops tracking parameters that do not identify the posting', () => {
+    // Real URL shape observed from DOU's listing page. `from` records which
+    // listing block the link was in, so the same vacancy appears under
+    // several values and would otherwise be scored once per value.
+    expect(externalIdFrom('https://jobs.dou.ua/companies/freitty/vacancies/358946/?from=list_hot'))
+      .toBe('/companies/freitty/vacancies/358946');
+  });
+
+  it('drops utm_* and the common ad-click parameters', () => {
+    expect(externalIdFrom('https://acme.com/careers/12?utm_source=x&utm_medium=y&gclid=z'))
+      .toBe('/careers/12');
+  });
+
+  it('keeps a parameter that identifies the posting', () => {
+    expect(externalIdFrom('https://acme.com/job?id=42&from=list_hot')).toBe('/job?id=42');
+  });
+
+  it('keeps every non-tracking parameter, in order', () => {
+    expect(externalIdFrom('https://acme.com/job?id=42&lang=en')).toBe('/job?id=42&lang=en');
+  });
+
+  it('is case-insensitive about parameter names', () => {
+    expect(externalIdFrom('https://acme.com/careers/12?UTM_Source=x&From=y')).toBe('/careers/12');
+  });
 });
 
 describe('createCustomSource.hydrate', () => {
