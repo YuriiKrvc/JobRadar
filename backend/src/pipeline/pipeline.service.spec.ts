@@ -398,6 +398,31 @@ describe('blocklists and hydration', () => {
     }));
   });
 
+  it('unions the global and per-source description words', async () => {
+    // The per-source list is the only path here: 'crypto' is absent from the
+    // profile, so a pipeline that dropped spec.blockedDescriptionWords would
+    // classify this posting instead of rejecting it.
+    const src: JobSource = {
+      id: 'Acme',
+      listPostings: async () => [posting('a:1', { description: 'clean snippet' })],
+      hydrate: async (p) => ({ ...p, description: 'We build crypto trading rails' }),
+    };
+    const { service, repo } = await build({
+      sources: [src],
+      specs: [{ name: 'Acme', blockedDescriptionWords: ['crypto'] }],
+      settings: withProfile({ blockedDescriptionWords: ['relocation required'] }),
+    });
+
+    const s = await service.run();
+
+    expect(s.hardFiltered).toBe(1);
+    expect(s.classified).toBe(0);
+    expect(repo.insertScore).toHaveBeenCalledWith('a:1', expect.objectContaining({
+      providerId: 'hard-filter',
+      reasoning: 'hard-filter:description-word:crypto',
+    }));
+  });
+
   it('still runs when a source has no hydrate method', async () => {
     const src: JobSource = { id: 'Legacy', listPostings: async () => [posting('a:1')] };
     const { service } = await build({ sources: [src] });
