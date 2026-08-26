@@ -2,7 +2,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-26-local-ollama-model-design.md`
 
-## Problem
+## The problem
 
 Classification was the only part of JobRadar needing a paid API key, and its
 cost scaled with how many boards were watched. The provider seam for a local
@@ -10,7 +10,7 @@ model already existed — `selectProvider` has routed `LLM_BASE_URL` to the
 OpenAI-compatible provider since v1, and that provider's own unit tests were
 written against Ollama's endpoint. What was missing was everything around it.
 
-## Decision
+## The decision
 
 Ollama runs on the **host**, outside compose. Compose only learns to reach it,
 `.env.example` leads with the local variables, and the provider gained the one
@@ -53,7 +53,7 @@ every request instantly, turning a typo into a classifier that never succeeds.
 Unchanged on purpose: `selectProvider`'s precedence, `anthropic.ts`, the dedup
 gate, `app_settings.version` bumping, and the verdict bands.
 
-## Verifying it
+## How to verify it works
 
 1. `ollama pull llama3.1`; confirm `OLLAMA_HOST=0.0.0.0` and restart Ollama.
 2. From `backend/`: `docker-compose build && docker-compose up -d`, then
