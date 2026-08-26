@@ -41,7 +41,7 @@ To deploy it, `npm run build` and copy `dist/` to any static host, then set
 `CORS_ORIGIN` in `backend/.env` to that host's origin and
 `cd backend && docker compose restart api`. The API serves no static assets.
 
-The dashboard opens on an empty Postings table with a "finish setup" prompt.
+The dashboard opens on an empty Postings feed with a "finish setup" prompt.
 Switch to **Settings**, paste your CV, set your hard constraints, and add at
 least one source. The next scheduled run picks them up.
 
@@ -129,7 +129,7 @@ Your files stay on disk untouched, and `config/` is in `.gitignore` from here
 on. Then run the first `docker compose up -d --build`: the `migrate` service
 imports `config/` into the database once and never touches it again.
 
-**Verify before you delete the backup.** Open the dashboard's Settings tab, or:
+**Verify before you delete the backup.** Open the dashboard at `/settings`, or:
 
 ```bash
 curl -s localhost:8080/api/settings | head -c 400
@@ -147,7 +147,12 @@ times a normal run's cost, once.
 The API has no authentication and binds to `127.0.0.1` only. Do not publish
 port 8080 without a reverse proxy providing TLS and auth. The dashboard is a
 static bundle deployed wherever you choose — its exposure is your call, not
-this repository's. Postgres, however, is published on `5433` on *all*
+this repository's. **Its host must rewrite unknown paths to `/index.html`**:
+the SPA uses real routes (`/`, `/settings`), so without that rewrite a hard
+refresh or a shared link to `/settings` returns 404. Deploy the API before the
+dashboard when upgrading — a dashboard newer than its API degrades (no
+sub-score breakdown) rather than breaking, but the reverse order is the one
+that reads correctly. Postgres, however, is published on `5433` on *all*
 interfaces with the default `jobradar`/`jobradar` credentials — change them or
 bind `127.0.0.1:5433:5432` in `backend/docker-compose.yml` before running on a
 shared network.
@@ -202,7 +207,7 @@ cross-origin by construction and fails without it.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/postings` | Query: `verdict`, `source`, `provider`, `minTotal`, `since`, `limit` |
+| GET | `/api/postings` | Query: `verdict`, `source`, `provider`, `minTotal`, `since`, `limit`. Rows carry `subscores` — the five rubric dimensions, each `{score, note}` |
 | GET | `/api/health` | Last 20 source runs |
 | GET | `/healthz` | Liveness |
 | GET | `/api/settings` | `{cv, rubricBody, rubricWeights, profile, version, updatedAt}` |
@@ -265,10 +270,10 @@ notify threshold is settable per provider via
 
 ## Tuning the rubric
 
-Open the dashboard, switch to the **Settings** tab, and edit the rubric prose or
+Open the dashboard at **`/settings`** and edit the rubric prose or
 the five dimension weights. Saving bumps the settings version, which is stored
 with every score written afterwards, so old scores stay interpretable and the
-postings table marks any row scored under an older version.
+postings feed marks any row scored under an older version.
 
 Weights do not need to sum to 100 — each one is normalised by the actual total,
 and the percentage shown beside it is what the score uses. Raising `coreStack`
