@@ -40,6 +40,15 @@ export async function addSource(
   return source;
 }
 
+export async function updateSource(
+  id: string, input: SourceInput, fetchFn: typeof fetch = fetch,
+): Promise<SourceRow> {
+  const { source } = await sendJson<{ source: SourceRow }>(
+    'PUT', `/api/sources/${id}`, input, fetchFn,
+  );
+  return source;
+}
+
 export async function toggleSource(
   id: string, enabled: boolean, fetchFn: typeof fetch = fetch,
 ): Promise<SourceRow> {

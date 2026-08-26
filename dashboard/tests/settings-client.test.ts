@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   addSource, deleteSource, fetchSettings, fetchSources,
-  saveCv, saveProfile, saveRubric, toggleSource,
+  saveCv, saveProfile, saveRubric, toggleSource, updateSource,
 } from '../src/api/settings';
 
 const WEIGHTS = { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10 };
@@ -39,6 +39,7 @@ describe('settings client', () => {
     const f = ok({ version: 7 });
     const profile = {
       excludedLocations: ['US'], allowedEmploymentTypes: [], minSalaryUsd: null, timezone: 'Europe/Kyiv',
+      blockedTitleWords: [], blockedDescriptionWords: [],
     };
     expect(await saveProfile(profile, f)).toBe(7);
     const [, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0]!;
@@ -52,7 +53,12 @@ describe('settings client', () => {
 
   it('POSTs a new source and unwraps it', async () => {
     const f = ok({ source: { id: 'new' } });
-    expect((await addSource({ kind: 'dou', url: 'https://x.co/' }, f)).id).toBe('new');
+    const input = {
+      name: 'DOU', url: 'https://x.co/',
+      selectors: { item: 'li', link: 'a' },
+      blockedTitleWords: [], blockedDescriptionWords: [],
+    };
+    expect((await addSource(input, f)).id).toBe('new');
   });
 
   it('PATCHes the toggle', async () => {
@@ -73,7 +79,29 @@ describe('settings client', () => {
       JSON.stringify({ statusCode: 409, message: 'That source is already configured' }),
       { status: 409, headers: { 'content-type': 'application/json' } },
     )) as unknown as typeof fetch;
-    await expect(addSource({ kind: 'dou', url: 'https://x.co/' }, f))
+    const input = {
+      name: 'DOU', url: 'https://x.co/',
+      selectors: { item: 'li', link: 'a' },
+      blockedTitleWords: [], blockedDescriptionWords: [],
+    };
+    await expect(addSource(input, f))
       .rejects.toThrow('That source is already configured');
+  });
+
+  it('PUTs a replaced source and returns the row', async () => {
+    const input = {
+      name: 'Acme', url: 'https://acme.com/careers',
+      selectors: { item: 'li', link: 'a' },
+      blockedTitleWords: [], blockedDescriptionWords: [],
+    };
+    const fetchFn = vi.fn(async () => new Response(
+      JSON.stringify({ source: { id: 'u1', ...input, enabled: true, createdAt: 'now' } }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ));
+
+    const row = await updateSource('u1', input, fetchFn as unknown as typeof fetch);
+
+    expect(fetchFn).toHaveBeenCalledWith('/api/sources/u1', expect.objectContaining({ method: 'PUT' }));
+    expect(row.id).toBe('u1');
   });
 });

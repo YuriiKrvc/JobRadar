@@ -45,6 +45,8 @@ export interface ProfileInput {
   allowedEmploymentTypes: string[];
   minSalaryUsd: number | null;
   timezone: string;
+  blockedTitleWords: string[];
+  blockedDescriptionWords: string[];
 }
 
 export interface SettingsResponse {
@@ -56,19 +58,26 @@ export interface SettingsResponse {
   updatedAt: string;
 }
 
-export type SourceKind = 'ats' | 'djinni' | 'dou';
+export interface Selectors {
+  item: string;
+  link: string;
+  title?: string;
+  company?: string;
+  location?: string;
+  employmentType?: string;
+  description?: string;
+  detail?: string;
+}
 
 export interface SourceRow {
   id: string;
-  kind: SourceKind;
-  board: string | null;
-  slug: string | null;
-  url: string | null;
+  name: string;
+  url: string;
+  selectors: Selectors;
+  blockedTitleWords: string[];
+  blockedDescriptionWords: string[];
   enabled: boolean;
   createdAt: string;
 }
 
-export type SourceInput =
-  | { kind: 'ats'; board: 'greenhouse' | 'lever' | 'ashby'; slug: string }
-  | { kind: 'djinni'; url: string }
-  | { kind: 'dou'; url: string };
+export type SourceInput = Omit<SourceRow, 'id' | 'enabled' | 'createdAt'>;
