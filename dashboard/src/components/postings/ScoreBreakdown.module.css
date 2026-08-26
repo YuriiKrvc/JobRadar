@@ -1,0 +1,48 @@
+.panel {
+  margin-top: 11px;
+  padding: 12px 14px;
+  background: var(--ink-05);
+}
+
+.dim {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.dim:last-child { margin-bottom: 0; }
+
+.dimLabel { width: 78px; flex: none; font-size: 12px; }
+
+.track {
+  flex: 1;
+  min-width: 50px;
+  height: 8px;
+  background: var(--ink-10);
+}
+
+.fill { height: 8px; background: var(--color-accent); }
+
+/* A score computed under different settings is not comparable to the others,
+   so it is never drawn in the live accent. */
+.stale .fill { background: var(--color-neutral-500); }
+
+.value {
+  width: 26px;
+  flex: none;
+  text-align: right;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.share { width: 34px; flex: none; font-size: 11px; color: var(--ink-50); }
+
+.note {
+  flex: 1.4;
+  min-width: 120px;
+  font-size: 11.5px;
+  color: var(--ink-62);
+  line-height: 1.35;
+}
