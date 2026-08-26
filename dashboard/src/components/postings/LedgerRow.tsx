@@ -26,6 +26,11 @@ export function LedgerRow({ row, currentVersion, weights, now }: Props) {
   const stale = isStale(row, currentVersion);
   const pips = pipCount(row.verdict);
 
+  // The dashboard and the API are separate deployments, so a dashboard newer
+  // than its API sees rows without `subscores`. Offer no breakdown rather than
+  // crash on the version skew.
+  const canBreakDown = !filtered && weights !== null && row.subscores !== undefined;
+
   return (
     <article className={near ? `${s.row} ${s.nearMissRow}` : s.row}>
       <div className={`${s.score} ${s[band]}`}>{row.total}</div>
@@ -72,7 +77,7 @@ export function LedgerRow({ row, currentVersion, weights, now }: Props) {
           {filtered && rule ? rejectionSentence(rule) : row.reasoning}
         </div>
 
-        {!filtered && weights && (
+        {canBreakDown && (
           <button
             type="button" className={s.toggle}
             aria-expanded={expanded}
@@ -88,8 +93,8 @@ export function LedgerRow({ row, currentVersion, weights, now }: Props) {
           </div>
         )}
 
-        {expanded && weights && (
-          <ScoreBreakdown subscores={row.subscores} weights={weights} stale={stale} />
+        {expanded && canBreakDown && (
+          <ScoreBreakdown subscores={row.subscores} weights={weights!} stale={stale} />
         )}
       </div>
 

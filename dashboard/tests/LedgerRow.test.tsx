@@ -124,6 +124,24 @@ describe('LedgerRow breakdown', () => {
   });
 });
 
+// The dashboard deploys separately from the API, so it can be newer than the
+// API it talks to. A row without sub-scores must degrade, not throw.
+describe('LedgerRow against an older API', () => {
+  it('offers no breakdown when the row carries no sub-scores', () => {
+    const older = row();
+    delete (older as Partial<PostingRow>).subscores;
+
+    render(
+      <MemoryRouter>
+        <LedgerRow row={older} currentVersion={3} weights={WEIGHTS} now={NOW} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Senior Platform Engineer')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /breakdown/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('LedgerRow for a rejected posting', () => {
   const rejected = {
     providerId: 'hard-filter', reasoning: 'hard-filter:location',
