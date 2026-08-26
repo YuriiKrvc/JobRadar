@@ -341,6 +341,9 @@ describe('blocklists and hydration', () => {
 
     expect(hydrate).toHaveBeenCalledTimes(1);
     expect(repo.upsert).toHaveBeenCalledTimes(2);
+    expect(repo.upsert).toHaveBeenLastCalledWith(
+      expect.objectContaining({ description: 'node postgres deep dive' }),
+    );
     expect(classify.mock.calls[0]![0].description).toBe('node postgres deep dive');
   });
 

@@ -29,7 +29,29 @@ export class PostingsRepository {
         location: p.location, employmentType: p.employmentType,
         description: p.description, raw: p.raw as object,
       })
-      .onConflictDoUpdate({ target: postings.id, set: { lastSeen: new Date() } })
+      .onConflictDoUpdate({
+        target: postings.id,
+        set: {
+          lastSeen: new Date(),
+          // Refresh the content, not just the timestamp. The pipeline upserts a
+          // posting twice on purpose — once from the listing page, then again
+          // after hydrate has fetched its detail page — and a last_seen-only
+          // clause silently threw the fetched description away, leaving the row
+          // holding a snippet while the classifier scored the full text.
+          // Re-listing also heals a title or location the board corrected.
+          //
+          // `source` is deliberately absent: it is a snapshot of the source's
+          // name at fetch time, and renaming a source is documented as leaving
+          // older postings under the old name.
+          url: p.url,
+          title: p.title,
+          company: p.company,
+          location: p.location,
+          employmentType: p.employmentType,
+          description: p.description,
+          raw: p.raw as object,
+        },
+      })
       .returning({ firstSeen: postings.firstSeen, lastSeen: postings.lastSeen });
 
     const row = rows[0];
