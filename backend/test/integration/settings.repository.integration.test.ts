@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { appSettings, sources } from '../../src/db/schema';
 import { SettingsRepository } from '../../src/settings/settings.repository';
 import { SettingsService } from '../../src/settings/settings.service';
+import { SettingsController } from '../../src/settings/settings.controller';
 
 const url = process.env.DATABASE_URL_TEST;
 if (!url) throw new Error('DATABASE_URL_TEST is required for integration tests');
@@ -12,6 +13,7 @@ const sql = postgres(url, { max: 1 });
 const db = drizzle(sql);
 const repo = new SettingsRepository(db);
 const service = new SettingsService(repo);
+const controller = new SettingsController(repo);
 
 const WEIGHTS = { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10 };
 const PROFILE = {
@@ -208,5 +210,42 @@ describe('SettingsService.load', () => {
   it('throws a clear error when the settings row is missing', async () => {
     await sql`DELETE FROM app_settings`;
     await expect(service.load()).rejects.toThrow(/not initialised/i);
+  });
+});
+
+// The upgrade path from a pre-branch install: the jsonb blob on disk has only
+// the four v1 keys. Both read paths must default the two new arrays — they are
+// separate parses, and letting only one of them do it blanked the dashboard.
+describe('a v1-shaped profile blob', () => {
+  const V1_PROFILE = {
+    excludedLocations: ['United States'],
+    allowedEmploymentTypes: ['full-time'],
+    minSalaryUsd: 5000,
+    timezone: 'Europe/Kyiv',
+  };
+
+  beforeEach(async () => {
+    await sql`UPDATE app_settings SET profile = ${JSON.stringify(V1_PROFILE)}::jsonb`;
+  });
+
+  it('is stored without the blocked-word keys', async () => {
+    const [row] = await sql`SELECT profile FROM app_settings`;
+    expect(Object.keys(row!.profile).sort()).toEqual([
+      'allowedEmploymentTypes', 'excludedLocations', 'minSalaryUsd', 'timezone',
+    ]);
+  });
+
+  it('reads back as empty arrays through SettingsService.load()', async () => {
+    const s = await service.load();
+    expect(s.profile.blockedTitleWords).toEqual([]);
+    expect(s.profile.blockedDescriptionWords).toEqual([]);
+    expect(s.profile.minSalaryUsd).toBe(5000);
+  });
+
+  it('reads back as empty arrays through GET /api/settings', async () => {
+    const body = await controller.read();
+    expect(body.profile.blockedTitleWords).toEqual([]);
+    expect(body.profile.blockedDescriptionWords).toEqual([]);
+    expect(body.profile.minSalaryUsd).toBe(5000);
   });
 });

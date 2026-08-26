@@ -50,6 +50,25 @@ describe('GET /api/settings', () => {
     await app.close();
   });
 
+  // The read path has to parse independently of SettingsService.load(): a row
+  // written before the blocked-word fields existed has neither key, and the
+  // dashboard's ChipInput calls value.map() on whatever arrives.
+  it('defaults the blocked-word arrays for a v1-shaped profile row', async () => {
+    const repo = fakeRepo();
+    repo.row.profile = {
+      excludedLocations: ['United States'], allowedEmploymentTypes: ['full-time'],
+      minSalaryUsd: 5000, timezone: 'Europe/Kyiv',
+    } as any;
+
+    const { app } = await build(repo);
+    const res = await request(app.getHttpServer()).get('/api/settings').expect(200);
+
+    expect(res.body.profile.blockedTitleWords).toEqual([]);
+    expect(res.body.profile.blockedDescriptionWords).toEqual([]);
+    expect(res.body.profile.minSalaryUsd).toBe(5000);
+    await app.close();
+  });
+
   it('never leaks the singleton primary key', async () => {
     const { app } = await build();
     const res = await request(app.getHttpServer()).get('/api/settings').expect(200);

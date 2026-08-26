@@ -250,8 +250,15 @@ Two upgrade-path properties of the schema-0003 migration:
 - The global blocked-word lists live **inside the `app_settings.profile` jsonb**,
   which the migration never rewrites. A v1 profile blob has no
   `blockedTitleWords` key at all, and parses anyway because `ProfileSchema`
-  declares both arrays with `.default([])`. Those defaults are the entire upgrade
-  path — dropping them would break every pre-existing install on read.
+  declares both arrays with `.default([])`. Those defaults only apply where
+  something actually parses, and there are **two** read paths that must:
+  `SettingsService.load()` for the worker, and `SettingsController.read()` for
+  `GET /api/settings`. Both call `ProfileSchema.parse(row.profile)`. The
+  controller's parse is not redundant with the service's — it is the one the
+  dashboard depends on, and returning the raw jsonb there hands `undefined` to
+  `ChipInput`'s `value.map()`, which unmounts the whole app with no way to
+  recover from the UI (`PUT /api/settings/profile` is `.strict()` and demands
+  both arrays). Integration tests cover a v1-shaped blob through both paths.
 
 ### dashboard/ — two tabs, one of them a write surface
 
