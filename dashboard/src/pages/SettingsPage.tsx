@@ -1,21 +1,18 @@
-import type { ApiState } from '../hooks/useApi';
 import { saveCv } from '../api/settings';
-import type { SettingsResponse } from '../api/types';
-import { DocumentEditor } from './DocumentEditor';
-import { ProfileForm } from './ProfileForm';
-import { RubricEditor } from './RubricEditor';
-import { SourcesTable } from './SourcesTable';
+import { useDashboardData } from '../context/DashboardData';
+import { DocumentEditor } from '../components/DocumentEditor';
+import { ProfileForm } from '../components/ProfileForm';
+import { RubricEditor } from '../components/RubricEditor';
+import { SourcesTable } from '../components/SourcesTable';
 
-interface Props {
+export function SettingsPage() {
   /**
    * Owned by App so the Postings tab's stale badge sees a save immediately,
-   * and so a tab switch does not refetch. Passing the whole ApiState keeps
+   * and so a route change does not refetch. Taking the whole ApiState keeps
    * `reload` bound to the same state the sections were seeded from.
    */
-  settings: ApiState<SettingsResponse>;
-}
+  const { settings } = useDashboardData();
 
-export function SettingsPage({ settings }: Props) {
   if (settings.error) return <p className="state" role="alert">Error: {settings.error}</p>;
 
   // Gate on `data`, not on `loading`. Every section's onSaved calls reload(),

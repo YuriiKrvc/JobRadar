@@ -1,15 +1,29 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SettingsPage } from '../src/components/SettingsPage';
+import { MemoryRouter } from 'react-router-dom';
+import { SettingsPage } from '../src/pages/SettingsPage';
 import { useApi } from '../src/hooks/useApi';
 import * as api from '../src/api/settings';
+import { DashboardDataProvider, type DashboardData } from '../src/context/DashboardData';
+import { DEFAULT_FILTERS } from '../src/api/filters-url';
 
-// SettingsPage takes its settings state from App, so the tests supply the same
-// state App would: one useApi over fetchSettings, reload and all.
+// SettingsPage takes its settings state from App through the dashboard
+// context, so the tests supply the same state App would: one useApi over
+// fetchSettings, reload and all.
 function Harness() {
   const settings = useApi(() => api.fetchSettings());
-  return <SettingsPage settings={settings} />;
+  const value = {
+    settings, ui: DEFAULT_FILTERS, setUi: () => {},
+  } as unknown as DashboardData;
+
+  return (
+    <MemoryRouter>
+      <DashboardDataProvider value={value}>
+        <SettingsPage />
+      </DashboardDataProvider>
+    </MemoryRouter>
+  );
 }
 
 const WEIGHTS = { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10 };

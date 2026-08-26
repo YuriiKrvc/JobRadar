@@ -1,24 +1,35 @@
-import { useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { NavLink, Navigate, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 import { fetchHealth, fetchPostings } from './api/client';
 import { fetchSettings } from './api/settings';
 import { useApi } from './hooks/useApi';
-import { Filters } from './components/Filters';
-import { PostingsTable } from './components/PostingsTable';
-import { SourceHealth } from './components/SourceHealth';
-import { SettingsPage } from './components/SettingsPage';
-import type { PostingFilters } from './api/types';
-
-type Tab = 'postings' | 'settings';
+import { parseFilters, toApiFilters, toSearchParams, type UiFilters } from './api/filters-url';
+import { DashboardDataProvider } from './context/DashboardData';
+import { PostingsPage } from './pages/PostingsPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 export function App() {
-  const [tab, setTab] = useState<Tab>('postings');
-  const [filters, setFilters] = useState<PostingFilters>({});
+  const [params, setParams] = useSearchParams();
+  const { pathname } = useLocation();
+  const onSettings = pathname.startsWith('/settings');
 
-  const postings = useApi(() => fetchPostings(filters), [filters]);
+  const ui = useMemo(() => parseFilters(params), [params]);
+  const setUi = useCallback(
+    (next: UiFilters) => setParams(toSearchParams(next)),
+    [setParams],
+  );
+
+  // The query string is the single source of truth, so the fetch key is its
+  // serialised form — a fresh object identity each render would otherwise
+  // retrigger the effect forever.
+  const apiFilters = useMemo(() => toApiFilters(ui, new Date()), [ui]);
+  const fetchKey = useMemo(() => JSON.stringify(apiFilters), [apiFilters]);
+
+  const postings = useApi(() => fetchPostings(apiFilters), [fetchKey]);
   const health = useApi(() => fetchHealth());
-  // Owned here, not inside SettingsPage: the stale-posting badge below needs
-  // the current version, so a save in Settings has to be visible on the
-  // Postings tab without a page reload. One fetch also serves both tabs.
+  // Owned here, not in SettingsPage: the stale-score badge on Postings needs
+  // the current version, so a save in Settings has to be visible without a
+  // reload. Keeping all three here also means switching routes never refetches.
   const settings = useApi(() => fetchSettings());
 
   // Any `settings` error row, not just "settings incomplete": a settings READ
@@ -29,46 +40,37 @@ export function App() {
   );
 
   return (
-    <>
+    <DashboardDataProvider value={{ postings, health, settings, ui, setUi }}>
       <h1>JobRadar</h1>
 
       {settingsError && (
         <p className="banner" role="status">
           JobRadar is not scoring yet —{' '}
           {settingsError.error ?? 'the last run could not read its settings'}.{' '}
-          <button type="button" onClick={() => setTab('settings')}>Finish setup</button>
+          <NavLink to="/settings">Finish setup</NavLink>
         </p>
       )}
 
-      {/* Two screens do not justify a routing dependency. */}
       <nav className="tabs" role="tablist">
-        {(['postings', 'settings'] as Tab[]).map((t) => (
-          <button
-            key={t}
-            role="tab"
-            type="button"
-            aria-selected={tab === t}
-            className={tab === t ? 'tab tab-active' : 'tab'}
-            onClick={() => setTab(t)}
-          >
-            {t === 'postings' ? 'Postings' : 'Settings'}
-          </button>
-        ))}
+        <NavLink
+          to="/" end role="tab" aria-selected={!onSettings}
+          className={({ isActive }) => (isActive ? 'tab tab-active' : 'tab')}
+        >
+          Postings
+        </NavLink>
+        <NavLink
+          to="/settings" role="tab" aria-selected={onSettings}
+          className={({ isActive }) => (isActive ? 'tab tab-active' : 'tab')}
+        >
+          Settings
+        </NavLink>
       </nav>
 
-      {tab === 'settings' ? <SettingsPage settings={settings} /> : (
-        <>
-          <Filters value={filters} onChange={setFilters} rows={postings.data ?? []} />
-
-          {postings.loading && <p className="state">Loading…</p>}
-          {postings.error && <p className="state" role="alert">Error: {postings.error}</p>}
-          {!postings.loading && !postings.error && (
-            <PostingsTable rows={postings.data ?? []} currentVersion={settings.data?.version ?? null} />
-          )}
-
-          <SourceHealth rows={health.data ?? []} />
-        </>
-      )}
-    </>
+      <Routes>
+        <Route path="/" element={<PostingsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </DashboardDataProvider>
   );
 }
