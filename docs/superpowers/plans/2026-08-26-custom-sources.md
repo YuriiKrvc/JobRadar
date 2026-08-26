@@ -79,7 +79,7 @@ The title check arrives in Task 4, where the pipeline gets its new ordering.
   - `Profile` gains `blockedTitleWords: string[]` and
     `blockedDescriptionWords: string[]`.
 
-- [ ] **Step 1: Write the failing matcher tests**
+- [x] **Step 1: Write the failing matcher tests**
 
 Add to `backend/src/filters.spec.ts`:
 
@@ -143,12 +143,12 @@ describe('applyTitleFilter', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cd backend && npx jest src/filters.spec.ts`
 Expected: FAIL — `matchBlockedWord is not a function` / `applyTitleFilter is not a function`.
 
-- [ ] **Step 3: Implement the matcher in `backend/src/filters.ts`**
+- [x] **Step 3: Implement the matcher in `backend/src/filters.ts`**
 
 Add above `applyHardFilters`:
 
@@ -188,12 +188,12 @@ export function applyTitleFilter(posting: RawPosting, words: string[]): FilterRe
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cd backend && npx jest src/filters.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing test for the description rule**
+- [x] **Step 5: Write the failing test for the description rule**
 
 Add to `backend/src/filters.spec.ts`:
 
@@ -227,13 +227,13 @@ describe('applyHardFilters description words', () => {
 });
 ```
 
-- [ ] **Step 6: Run it to verify it fails**
+- [x] **Step 6: Run it to verify it fails**
 
 Run: `cd backend && npx jest src/filters.spec.ts -t "description words"`
 Expected: FAIL — `applyHardFilters` currently takes two parameters, so the third
 argument is ignored and the first case returns `{ passed: true }`.
 
-- [ ] **Step 7: Add the third parameter and the rule**
+- [x] **Step 7: Add the third parameter and the rule**
 
 In `backend/src/filters.ts`, change the signature and insert the rule after the
 employment-type block and before the salary block. Placement is deliberate: a
@@ -258,7 +258,7 @@ export function applyHardFilters(
 }
 ```
 
-- [ ] **Step 8: Add the two profile fields**
+- [x] **Step 8: Add the two profile fields**
 
 In `backend/src/settings/schema.ts`, extend `profileFields` (both `ProfileSchema`
 and `ProfileBodySchema` are built from it, so the lenient and strict shapes
@@ -288,7 +288,7 @@ export const ProfileSchema = z.object({
 });
 ```
 
-- [ ] **Step 9: Write the failing test for the jsonb read**
+- [x] **Step 9: Write the failing test for the jsonb read**
 
 Add to `backend/src/settings/schema.spec.ts`:
 
@@ -314,12 +314,12 @@ it('requires both blocked-word lists on the wire', () => {
 });
 ```
 
-- [ ] **Step 10: Run it**
+- [x] **Step 10: Run it**
 
 Run: `cd backend && npx jest src/settings/schema.spec.ts`
 Expected: PASS (the schema change from Step 8 already satisfies both).
 
-- [ ] **Step 11: Parse the profile in `SettingsService.load()`**
+- [x] **Step 11: Parse the profile in `SettingsService.load()`**
 
 `backend/src/settings/settings.service.ts` currently returns `row.profile`
 straight out of jsonb. An `app_settings` row written before Step 8 has no
@@ -336,7 +336,7 @@ import { ProfileSchema, type AppSettings } from './schema';
 Add a comment explaining why the parse is here — this is the one place a legacy
 jsonb shape reaches the runtime, and the lenient schema's defaults exist for it.
 
-- [ ] **Step 12: Update `DEFAULT_PROFILE` in the seeder**
+- [x] **Step 12: Update `DEFAULT_PROFILE` in the seeder**
 
 `backend/src/settings/seed.ts`:
 
@@ -351,7 +351,7 @@ const DEFAULT_PROFILE = {
 };
 ```
 
-- [ ] **Step 13: Update the one `applyHardFilters` call site**
+- [x] **Step 13: Update the one `applyHardFilters` call site**
 
 In `backend/src/pipeline/pipeline.service.ts`, the call inside `run()`:
 
@@ -362,7 +362,7 @@ const filter = applyHardFilters(posting, settings.profile, settings.profile.bloc
 This is temporary shape only — Task 4 replaces it with the union of the global
 and per-source lists.
 
-- [ ] **Step 14: Fix the pipeline spec's settings fixture**
+- [x] **Step 14: Fix the pipeline spec's settings fixture**
 
 `backend/src/pipeline/pipeline.service.spec.ts` builds an `AppSettings` literal
 whose `profile` now misses two required keys. Add them:
@@ -375,14 +375,14 @@ whose `profile` now misses two required keys. Add them:
   },
 ```
 
-- [ ] **Step 15: Run the whole unit suite**
+- [x] **Step 15: Run the whole unit suite**
 
 Run: `cd backend && npm test`
 Expected: PASS. If another spec constructs a `Profile` literal, add the two keys
 there too — `npx tsc -p tsconfig.build.json --noEmit` will not catch spec files,
 so rely on the Jest run's compile errors.
 
-- [ ] **Step 16: Commit**
+- [x] **Step 16: Commit**
 
 ```bash
 git add backend/src/filters.ts backend/src/filters.spec.ts \
@@ -418,7 +418,7 @@ task ends green and fully tested before anything is cut over.
   - `externalIdFrom(url: string): string`
   - `JobSource.hydrate?(posting: RawPosting): Promise<RawPosting>`
 
-- [ ] **Step 1: Add the selector schema and spec type**
+- [x] **Step 1: Add the selector schema and spec type**
 
 In `backend/src/settings/schema.ts`, above `SourcesSchema`:
 
@@ -456,7 +456,7 @@ export interface SourceSpec {
 }
 ```
 
-- [ ] **Step 2: Write the failing schema tests**
+- [x] **Step 2: Write the failing schema tests**
 
 Add to `backend/src/settings/schema.spec.ts`:
 
@@ -477,13 +477,13 @@ describe('SelectorsSchema', () => {
 });
 ```
 
-- [ ] **Step 3: Run it**
+- [x] **Step 3: Run it**
 
 Run: `cd backend && npx jest src/settings/schema.spec.ts`
 Expected: PASS (Step 1 satisfies it). Add the `SelectorsSchema` import to the
 spec if it is missing.
 
-- [ ] **Step 4: Move `htmlToText` into its own module**
+- [x] **Step 4: Move `htmlToText` into its own module**
 
 Create `backend/src/sources/html.ts`:
 
@@ -505,12 +505,12 @@ import { htmlToText } from './html';
 In `backend/src/sources/ats.spec.ts`, change the `htmlToText` import to
 `from './html'`.
 
-- [ ] **Step 5: Run the moved-function tests**
+- [x] **Step 5: Run the moved-function tests**
 
 Run: `cd backend && npx jest src/sources/ats.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Add `hydrate` to the `JobSource` contract**
+- [x] **Step 6: Add `hydrate` to the `JobSource` contract**
 
 In `backend/src/types.ts`:
 
@@ -527,7 +527,7 @@ export interface JobSource {
 }
 ```
 
-- [ ] **Step 7: Write the failing adapter tests**
+- [x] **Step 7: Write the failing adapter tests**
 
 Create `backend/src/sources/custom.spec.ts`:
 
@@ -685,12 +685,12 @@ describe('createCustomSource.hydrate', () => {
 });
 ```
 
-- [ ] **Step 8: Run it to verify it fails**
+- [x] **Step 8: Run it to verify it fails**
 
 Run: `cd backend && npx jest src/sources/custom.spec.ts`
 Expected: FAIL — `Cannot find module './custom'`.
 
-- [ ] **Step 9: Implement the adapter**
+- [x] **Step 9: Implement the adapter**
 
 Create `backend/src/sources/custom.ts`:
 
@@ -795,17 +795,17 @@ export function createCustomSource(spec: SourceSpec, fetchFn: FetchFn = fetch): 
 }
 ```
 
-- [ ] **Step 10: Run the adapter tests**
+- [x] **Step 10: Run the adapter tests**
 
 Run: `cd backend && npx jest src/sources/custom.spec.ts`
 Expected: PASS, all cases.
 
-- [ ] **Step 11: Run the full unit suite and the build**
+- [x] **Step 11: Run the full unit suite and the build**
 
 Run: `cd backend && npm test && npx tsc -p tsconfig.build.json --noEmit`
 Expected: both clean. Nothing has been removed yet.
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add backend/src/sources/html.ts backend/src/sources/custom.ts \
@@ -851,7 +851,7 @@ cutover, and its gate is that the *existing* tests still pass.
   - `BUILD_SOURCE` token, `type BuildSource = (spec: SourceSpec) => JobSource`
   - `SourceRow = typeof sources.$inferSelect` re-exported from `to-source-specs.ts`
 
-- [ ] **Step 1: Rewrite the table in `backend/src/db/schema.ts`**
+- [x] **Step 1: Rewrite the table in `backend/src/db/schema.ts`**
 
 Delete the `sourceKindEnum` declaration entirely and replace the `sources` table
 with:
@@ -879,13 +879,13 @@ Update the imports at the top of the file: add
 if the file has no other user of them (it still uses `check` for `app_settings` —
 verify before deleting), and keep `sql`.
 
-- [ ] **Step 2: Generate the migration**
+- [x] **Step 2: Generate the migration**
 
 Run: `cd backend && npm run generate`
 Expected: a new `drizzle/0003_*.sql` plus a `meta/_journal.json` entry. Read the
 generated SQL.
 
-- [ ] **Step 3: Hand-edit the generated SQL**
+- [x] **Step 3: Hand-edit the generated SQL**
 
 drizzle cannot know that the existing rows must go, and `name`/`selectors` are
 `NOT NULL` with nothing to backfill them from. Put this as the **first**
@@ -904,7 +904,7 @@ anything drizzle omitted — it commonly skips the enum type drop. Use
 `DROP CONSTRAINT IF EXISTS` for the three old constraints so the migration is
 safe on a database that never had them.
 
-- [ ] **Step 4: Apply the migration against a scratch database**
+- [x] **Step 4: Apply the migration against a scratch database**
 
 ```bash
 cd backend && docker-compose up -d db && docker-compose run --rm migrate
@@ -920,7 +920,7 @@ docker-compose exec db psql -U jobradar -d jobradar -c '\d sources' \
 Expected: the new columns, both unique constraints, no `kind`/`board`/`slug`, and
 a non-zero posting count if the database had one before.
 
-- [ ] **Step 5: Write the failing `toSourceSpecs` test**
+- [x] **Step 5: Write the failing `toSourceSpecs` test**
 
 Create `backend/src/settings/to-source-specs.spec.ts`:
 
@@ -966,12 +966,12 @@ describe('toSourceSpecs', () => {
 });
 ```
 
-- [ ] **Step 6: Run it to verify it fails**
+- [x] **Step 6: Run it to verify it fails**
 
 Run: `cd backend && npx jest src/settings/to-source-specs.spec.ts`
 Expected: FAIL — `Cannot find module './to-source-specs'`.
 
-- [ ] **Step 7: Implement it and delete its predecessor**
+- [x] **Step 7: Implement it and delete its predecessor**
 
 Create `backend/src/settings/to-source-specs.ts`:
 
@@ -1004,12 +1004,12 @@ export function toSourceSpecs(rows: SourceRow[]): SourceSpec[] {
 git rm backend/src/settings/to-sources-config.ts backend/src/settings/to-sources-config.spec.ts
 ```
 
-- [ ] **Step 8: Run it**
+- [x] **Step 8: Run it**
 
 Run: `cd backend && npx jest src/settings/to-source-specs.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 9: Flatten `SourceInputSchema` and drop `SourcesSchema`**
+- [x] **Step 9: Flatten `SourceInputSchema` and drop `SourcesSchema`**
 
 In `backend/src/settings/schema.ts`: delete `SourcesSchema` and
 `type SourcesConfig` outright, and replace the discriminated
@@ -1030,7 +1030,7 @@ Change `AppSettings.sources` to `SourceSpec[]` and remove the `sources` key from
 `FileConfig` — a v1 `sources.yaml` has no selectors, so it cannot produce a
 usable row. Update `FileConfig`'s doc comment to say so.
 
-- [ ] **Step 10: Update the repository**
+- [x] **Step 10: Update the repository**
 
 In `backend/src/settings/settings.repository.ts`, change the `SourceRow` import
 to `from './to-source-specs'` and replace `addSource`:
@@ -1049,7 +1049,7 @@ to `from './to-source-specs'` and replace `addSource`:
 `input` is already exactly the column set, both word arrays defaulted by Zod, so
 no mapping is needed. Leave `setSourceEnabled` and `deleteSource` alone.
 
-- [ ] **Step 11: Update `SettingsService.load()`**
+- [x] **Step 11: Update `SettingsService.load()`**
 
 ```ts
 import { toSourceSpecs } from './to-source-specs';
@@ -1057,7 +1057,7 @@ import { toSourceSpecs } from './to-source-specs';
       sources: toSourceSpecs(sourceRows),
 ```
 
-- [ ] **Step 12: Update the importer and the seeder**
+- [x] **Step 12: Update the importer and the seeder**
 
 In `backend/src/settings/import.ts`, drop the `sources` key from the returned
 object and remove the `SourcesSchema` import, leaving a comment: the v1
@@ -1071,7 +1071,7 @@ still wraps the guard and the one insert; keep the comment explaining why.
 Update `backend/src/settings/import.spec.ts`: remove assertions about parsed
 sources, and add one asserting a `sources.yaml` present on disk is ignored.
 
-- [ ] **Step 13: Retype the factory and its DI token**
+- [x] **Step 13: Retype the factory and its DI token**
 
 Replace `backend/src/sources/sources.factory.ts` with:
 
@@ -1118,7 +1118,7 @@ export class SourcesModule {}
 Rewrite `backend/src/sources/sources.factory.spec.ts` to assert `buildSource`
 returns an adapter whose `id` is the spec's name and which exposes `hydrate`.
 
-- [ ] **Step 14: Retype the pipeline (mechanical only)**
+- [x] **Step 14: Retype the pipeline (mechanical only)**
 
 In `backend/src/pipeline/pipeline.service.ts`:
 
@@ -1155,13 +1155,13 @@ a `SourceSpec[]`, and the injected fake resolves a spec to a fake `JobSource`:
 where `byName` is a `Map` built from the fake sources the test passes in. Give
 each fixture spec a matching `name`.
 
-- [ ] **Step 15: Run the full suite and the build**
+- [x] **Step 15: Run the full suite and the build**
 
 Run: `cd backend && npm test && npx tsc -p tsconfig.build.json --noEmit`
 Expected: both clean. Every existing behavioural test still passes — this task
 changed types and storage, not behaviour.
 
-- [ ] **Step 16: Commit**
+- [x] **Step 16: Commit**
 
 ```bash
 git add -A backend/src backend/drizzle
@@ -1183,7 +1183,7 @@ git commit -m "refactor!: sources are name + url + selectors, with no kind"
   title-word rejection counted in `hardFiltered` and a hydrate failure in
   `sourceErrors`.
 
-- [ ] **Step 1: Write the failing pipeline tests**
+- [x] **Step 1: Write the failing pipeline tests**
 
 Add to `backend/src/pipeline/pipeline.service.spec.ts`. These assume the
 `build()` helper from Task 3 Step 14; extend it to accept per-spec word lists.
@@ -1299,12 +1299,12 @@ function withProfile(over: Partial<AppSettings['profile']>): AppSettings {
 and extend `build()` with an optional `specs` override that patches the fixture's
 `SourceSpec[]` by name, so a test can give one source its own word lists.
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `cd backend && npx jest src/pipeline/pipeline.service.spec.ts -t "blocklists and hydration"`
 Expected: FAIL — hydrate is never called and no title rule exists.
 
-- [ ] **Step 3: Extract the hard-filter score row**
+- [x] **Step 3: Extract the hard-filter score row**
 
 The insert is about to appear twice, so lift it out first. Add a private method
 to `PipelineService`:
@@ -1321,7 +1321,7 @@ to `PipelineService`:
 
 and replace the existing inline insert in `run()` with a call to it.
 
-- [ ] **Step 4: Implement the new ordering**
+- [x] **Step 4: Implement the new ordering**
 
 Replace the per-posting body of `run()` with:
 
@@ -1402,17 +1402,17 @@ Replace the per-posting body of `run()` with:
 
 Add `applyTitleFilter` to the `../filters` import.
 
-- [ ] **Step 5: Run the pipeline spec**
+- [x] **Step 5: Run the pipeline spec**
 
 Run: `cd backend && npx jest src/pipeline/pipeline.service.spec.ts`
 Expected: PASS, new cases and old.
 
-- [ ] **Step 6: Run everything**
+- [x] **Step 6: Run everything**
 
 Run: `cd backend && npm test && npx tsc -p tsconfig.build.json --noEmit`
 Expected: clean.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/src/pipeline/pipeline.service.ts backend/src/pipeline/pipeline.service.spec.ts
@@ -1436,7 +1436,7 @@ is fixed without losing the board's posting history.
 - Produces: `SettingsRepository.replaceSource(id: string, input: SourceInput): Promise<SourceRow | null>`
   — `null` when no row has that id. Does **not** touch `enabled`.
 
-- [ ] **Step 1: Write the failing controller tests**
+- [x] **Step 1: Write the failing controller tests**
 
 Add to `backend/src/settings/sources.controller.spec.ts`, following whatever fake
 repository the existing cases in that file use:
@@ -1485,12 +1485,12 @@ and node-postgres use `constraint`. The controller reads both (Step 4), so both
 spellings are covered and neither test is driver-specific. Task 6 Step 5 asserts
 which one the installed driver actually sets, against a real database.
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `cd backend && npx jest src/settings/sources.controller.spec.ts`
 Expected: FAIL — `controller.replace is not a function`.
 
-- [ ] **Step 3: Add `replaceSource` to the repository**
+- [x] **Step 3: Add `replaceSource` to the repository**
 
 ```ts
   /**
@@ -1509,7 +1509,7 @@ Expected: FAIL — `controller.replace is not a function`.
   }
 ```
 
-- [ ] **Step 4: Add the endpoint and share the conflict mapping**
+- [x] **Step 4: Add the endpoint and share the conflict mapping**
 
 In `backend/src/settings/sources.controller.ts`, replace the inline `catch` in
 `create` with a shared helper and add `replace`:
@@ -1558,17 +1558,17 @@ function conflictOf(err: unknown): ConflictException | null {
 
 Add `Put` to the `@nestjs/common` import list.
 
-- [ ] **Step 5: Run the controller spec**
+- [x] **Step 5: Run the controller spec**
 
 Run: `cd backend && npx jest src/settings/sources.controller.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Run everything**
+- [x] **Step 6: Run everything**
 
 Run: `cd backend && npm test && npx tsc -p tsconfig.build.json --noEmit`
 Expected: clean.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/src/settings/settings.repository.ts \
@@ -1591,7 +1591,7 @@ git commit -m "feat: PUT /api/sources/:id replaces a source in place"
 **Interfaces:**
 - Consumes: everything from Tasks 1–5. Produces nothing new.
 
-- [ ] **Step 1: Rescue the `htmlToText` cases before deleting `ats.spec.ts`**
+- [x] **Step 1: Rescue the `htmlToText` cases before deleting `ats.spec.ts`**
 
 Create `backend/src/sources/html.spec.ts` and move the `htmlToText` describe
 block from `ats.spec.ts` into it verbatim, changing the import to `./html`.
@@ -1599,7 +1599,7 @@ block from `ats.spec.ts` into it verbatim, changing the import to `./html`.
 Run: `cd backend && npx jest src/sources/html.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 2: Record the Djinni and DOU selectors before deleting them**
+- [x] **Step 2: Record the Djinni and DOU selectors before deleting them**
 
 Before removing the files, copy their selector constants into a scratch note —
 Task 11's feature doc publishes them as the copy-paste reference for re-adding
@@ -1624,7 +1624,7 @@ location:    span.cities
 description: div.sh-info
 ```
 
-- [ ] **Step 3: Delete the adapters**
+- [x] **Step 3: Delete the adapters**
 
 ```bash
 cd /Users/ykravchenko/www/JobRadar
@@ -1633,7 +1633,7 @@ git rm backend/src/sources/ats.ts backend/src/sources/ats.spec.ts \
   backend/src/sources/dou.ts backend/src/sources/dou.spec.ts
 ```
 
-- [ ] **Step 4: Rewrite the live-source integration suite**
+- [x] **Step 4: Rewrite the live-source integration suite**
 
 `backend/test/integration/sources.integration.test.ts` imports all three deleted
 adapters. Its purpose — "do the real selectors still parse?" — no longer belongs
@@ -1693,7 +1693,7 @@ describe.skipIf(!process.env.INTEGRATION)('live sources', () => {
 });
 ```
 
-- [ ] **Step 5: Update the three database integration suites**
+- [x] **Step 5: Update the three database integration suites**
 
 In each of `settings.schema.integration.test.ts`,
 `settings.repository.integration.test.ts` and `seed.integration.test.ts`:
@@ -1714,7 +1714,7 @@ In each of `settings.schema.integration.test.ts`,
   with one asserting a `/config` directory containing `sources.yaml` seeds
   **no** source rows
 
-- [ ] **Step 6: Run both suites**
+- [x] **Step 6: Run both suites**
 
 ```bash
 cd backend
@@ -1727,7 +1727,7 @@ live suite green, or a clearly reported network/selector failure if Djinni's
 markup has moved. If the live one fails on markup, that is now a data problem —
 record the working selectors and move on; do not add fallbacks to the adapter.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A backend/src/sources backend/test/integration
@@ -1750,7 +1750,7 @@ git commit -m "refactor: delete the ats, djinni and dou adapters"
   - `ProfileInput` gains both word arrays
   - `updateSource(id: string, input: SourceInput, fetchFn?): Promise<SourceRow>`
 
-- [ ] **Step 1: Rewrite the source types**
+- [x] **Step 1: Rewrite the source types**
 
 In `dashboard/src/api/types.ts`, delete `SourceKind` and replace `SourceRow` and
 `SourceInput`. These mirror `backend/src/api/api.schema.ts` and
@@ -1790,7 +1790,7 @@ And add to `ProfileInput`:
   blockedDescriptionWords: string[];
 ```
 
-- [ ] **Step 2: Write the failing client test**
+- [x] **Step 2: Write the failing client test**
 
 Add to `dashboard/tests/settings-client.test.ts`, matching the file's existing
 fake-fetch style:
@@ -1814,12 +1814,12 @@ it('PUTs a replaced source and returns the row', async () => {
 });
 ```
 
-- [ ] **Step 3: Run it to verify it fails**
+- [x] **Step 3: Run it to verify it fails**
 
 Run: `cd dashboard && npx vitest run tests/settings-client.test.ts`
 Expected: FAIL — `updateSource` is not exported.
 
-- [ ] **Step 4: Add `updateSource`**
+- [x] **Step 4: Add `updateSource`**
 
 In `dashboard/src/api/settings.ts`:
 
@@ -1834,12 +1834,12 @@ export async function updateSource(
 }
 ```
 
-- [ ] **Step 5: Run it**
+- [x] **Step 5: Run it**
 
 Run: `cd dashboard && npx vitest run tests/settings-client.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add dashboard/src/api dashboard/tests/settings-client.test.ts
@@ -1867,7 +1867,7 @@ serve both add and edit. The form comes out into its own file, used twice.
     `onSubmit: (input: SourceInput) => void`
   - `ChipInput` gains `help?: string`
 
-- [ ] **Step 1: Write the failing `ChipInput` help test**
+- [x] **Step 1: Write the failing `ChipInput` help test**
 
 Add to `dashboard/tests/ChipInput.test.tsx`:
 
@@ -1878,12 +1878,12 @@ it('renders help text associated with the input', () => {
 });
 ```
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `cd dashboard && npx vitest run tests/ChipInput.test.tsx`
 Expected: FAIL — the text is not rendered.
 
-- [ ] **Step 3: Add the prop**
+- [x] **Step 3: Add the prop**
 
 In `dashboard/src/components/ChipInput.tsx` add `help?: string` to `Props` and
 render it under the label:
@@ -1893,12 +1893,12 @@ render it under the label:
       {help && <p className="field-help">{help}</p>}
 ```
 
-- [ ] **Step 4: Run it**
+- [x] **Step 4: Run it**
 
 Run: `cd dashboard && npx vitest run tests/ChipInput.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing form test**
+- [x] **Step 5: Write the failing form test**
 
 Create `dashboard/tests/SourceForm.test.tsx`:
 
@@ -1969,12 +1969,12 @@ it('renders a cancel button only when onCancel is given', () => {
 });
 ```
 
-- [ ] **Step 6: Run it to verify it fails**
+- [x] **Step 6: Run it to verify it fails**
 
 Run: `cd dashboard && npx vitest run tests/SourceForm.test.tsx`
 Expected: FAIL — cannot resolve `../src/components/SourceForm`.
 
-- [ ] **Step 7: Implement the form**
+- [x] **Step 7: Implement the form**
 
 Create `dashboard/src/components/SourceForm.tsx`:
 
@@ -2096,12 +2096,12 @@ export function SourceForm({ initial, submitLabel, saving, error, onSubmit, onCa
 }
 ```
 
-- [ ] **Step 8: Run the form tests**
+- [x] **Step 8: Run the form tests**
 
 Run: `cd dashboard && npx vitest run tests/SourceForm.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 9: Add the help-text style**
+- [x] **Step 9: Add the help-text style**
 
 In `dashboard/src/styles.css`, next to the existing `.field` rule:
 
@@ -2113,7 +2113,7 @@ In `dashboard/src/styles.css`, next to the existing `.field` rule:
 Match the file's existing colour conventions rather than hardcoding `#ddd` if it
 defines a border variable.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add dashboard/src/components/SourceForm.tsx dashboard/src/components/ChipInput.tsx \
@@ -2133,7 +2133,7 @@ git commit -m "feat(dashboard): source form with selector and blocklist fields"
 - Consumes: `SourceForm` (Task 8); `updateSource`, `SourceRow`, `SourceInput` (Task 7).
 - Produces: nothing new.
 
-- [ ] **Step 1: Rewrite the failing table tests**
+- [x] **Step 1: Rewrite the failing table tests**
 
 Replace `dashboard/tests/SourcesTable.test.tsx`. `json()` below builds the
 `Response` objects the client expects; if the existing file already has such a
@@ -2283,12 +2283,12 @@ add-form assertion proves blank optional selectors are omitted rather than sent
 as `''` (which `SelectorsSchema.min(1)` rejects), and the failed-save assertion
 proves a 409 leaves the form open with the user's typing intact.
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cd dashboard && npx vitest run tests/SourcesTable.test.tsx`
 Expected: FAIL.
 
-- [ ] **Step 3: Rewrite the component**
+- [x] **Step 3: Rewrite the component**
 
 Replace `dashboard/src/components/SourcesTable.tsx`:
 
@@ -2402,18 +2402,18 @@ Note the `<>` fragment inside `map` needs the `key` on the fragment, not the
 `<tr>` — use `<Fragment key={r.id}>` from `react` instead of the shorthand, or
 React will warn.
 
-- [ ] **Step 4: Run the table tests**
+- [x] **Step 4: Run the table tests**
 
 Run: `cd dashboard && npx vitest run tests/SourcesTable.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Run the whole dashboard suite**
+- [x] **Step 5: Run the whole dashboard suite**
 
 Run: `cd dashboard && npx vitest run && npx tsc --noEmit`
 Expected: clean. `SettingsPage.test.tsx` and `App.test.tsx` may assert on the old
 source fixture shape — update their fixtures to the new `SourceRow`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add dashboard/src/components/SourcesTable.tsx dashboard/tests
@@ -2432,7 +2432,7 @@ git commit -m "feat(dashboard): edit sources in place"
 - Consumes: `ProfileInput` (Task 7), `ChipInput`'s `help` prop (Task 8).
 - Produces: nothing new.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `dashboard/tests/ProfileForm.test.tsx`:
 
@@ -2481,12 +2481,12 @@ it('saves an added description word', async () => {
 If the existing cases in that file mock `fetch` a different way, follow theirs
 rather than introducing a second pattern.
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cd dashboard && npx vitest run tests/ProfileForm.test.tsx`
 Expected: FAIL — the fields do not exist.
 
-- [ ] **Step 3: Add the two fields**
+- [x] **Step 3: Add the two fields**
 
 In `dashboard/src/components/ProfileForm.tsx`, after the employment-types
 `ChipInput`:
@@ -2516,17 +2516,17 @@ In `dashboard/src/components/ProfileForm.tsx`, after the employment-types
       </p>
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `cd dashboard && npx vitest run tests/ProfileForm.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Run the whole dashboard suite**
+- [x] **Step 5: Run the whole dashboard suite**
 
 Run: `cd dashboard && npx vitest run && npx tsc --noEmit`
 Expected: clean.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add dashboard/src/components/ProfileForm.tsx dashboard/tests/ProfileForm.test.tsx
@@ -2546,7 +2546,7 @@ git commit -m "feat(dashboard): global blocked-word lists in the profile form"
 **Interfaces:**
 - Consumes: everything. Produces documentation only.
 
-- [ ] **Step 1: Run the stack and add a real source**
+- [x] **Step 1: Run the stack and add a real source**
 
 ```bash
 cd backend
@@ -2560,7 +2560,7 @@ watch the worker log its listing count. Confirm in the dashboard that the
 postings carry the name you gave the source and that at least one has a
 description longer than the listing snippet.
 
-- [ ] **Step 2: Verify a blocklist end to end**
+- [x] **Step 2: Verify a blocklist end to end**
 
 Add a word matching one of those postings to the global title list, delete that
 posting's score row so it is re-considered
@@ -2568,7 +2568,7 @@ posting's score row so it is re-considered
 and confirm the next run records `hard-filter:title-word:<word>` rather than
 fetching the detail page.
 
-- [ ] **Step 3: Update `CLAUDE.md`**
+- [x] **Step 3: Update `CLAUDE.md`**
 
 Grep for the old behaviour rather than guessing which paragraphs are stale:
 
@@ -2583,13 +2583,13 @@ which must show the new ordering and say why hydrate sits between the gate and
 the filters; the note that `import.ts`/`seed.ts` no longer seed sources; and the
 `config/` paragraph, since `sources.yaml` is no longer imported.
 
-- [ ] **Step 4: Update `README.md`**
+- [x] **Step 4: Update `README.md`**
 
 Add `PUT /api/sources/:id` to the REST API table. Check the quick-start and
 rubric-tuning sections for anything describing `sources.yaml` or a board/slug
 source and rewrite it around name + URL + selectors.
 
-- [ ] **Step 5: Write `docs/features/custom-sources.md`**
+- [x] **Step 5: Write `docs/features/custom-sources.md`**
 
 Cover, per this repo's convention: the problem (three adapters, none of them the
 boards actually worth watching); the design decision and the alternatives
@@ -2600,7 +2600,7 @@ JavaScript-rendered boards cannot work; the note that blocklists are not
 retroactive; and the Djinni and DOU selector sets recorded in Task 6 Step 2, as a
 copy-paste block for re-adding those boards.
 
-- [ ] **Step 6: Run every suite one last time**
+- [x] **Step 6: Run every suite one last time**
 
 ```bash
 cd backend && npm test && npx tsc -p tsconfig.build.json --noEmit
@@ -2609,7 +2609,7 @@ cd ../dashboard && npx vitest run && npx tsc --noEmit
 ```
 Expected: all green. Report the actual output; do not claim green without it.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add CLAUDE.md README.md docs/features/custom-sources.md docs/superpowers/plans/2026-08-26-custom-sources.md
