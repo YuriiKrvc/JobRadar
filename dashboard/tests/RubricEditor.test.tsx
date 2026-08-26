@@ -136,4 +136,31 @@ describe('RubricEditor', () => {
       'All weights are zero — the rubric would score nothing. Set at least one above zero.',
     );
   });
+
+  it('never calls saveRubric when Save is clicked with all weights zeroed out', async () => {
+    // Editing every weight down to 0 makes the section dirty, so
+    // SettingsSection — which knows nothing about all-zero weights — enables
+    // Save. The only thing stopping that click from reaching the backend is
+    // the `if (allZero) return;` guard inside onSave. Seed with non-zero
+    // weights so the edit itself is what makes the section dirty, rather
+    // than starting from an already-all-zero (and thus non-dirty) state.
+    const save = vi.spyOn(api, 'saveRubric').mockResolvedValue(4);
+    setup();
+
+    for (const label of LABELS) {
+      const input = screen.getByLabelText(label);
+      await userEvent.clear(input);
+      await userEvent.type(input, '0');
+    }
+
+    const saveButton = screen.getByRole('button', { name: /^Save/ });
+    // Prove the click actually lands on a live button — a disabled button
+    // would make the "never called" assertion below pass for the wrong
+    // reason.
+    expect(saveButton).toBeEnabled();
+
+    await userEvent.click(saveButton);
+
+    expect(save).not.toHaveBeenCalled();
+  });
 });
