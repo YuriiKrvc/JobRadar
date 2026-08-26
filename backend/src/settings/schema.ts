@@ -7,6 +7,8 @@ const profileFields = {
   allowedEmploymentTypes: z.array(z.string()),
   minSalaryUsd: z.number().int().positive().nullable(),
   timezone: z.string(),
+  blockedTitleWords: z.array(z.string()),
+  blockedDescriptionWords: z.array(z.string()),
 };
 
 /**
@@ -19,6 +21,8 @@ export const ProfileSchema = z.object({
   allowedEmploymentTypes: profileFields.allowedEmploymentTypes.default([]),
   minSalaryUsd: profileFields.minSalaryUsd.default(null),
   timezone: profileFields.timezone.default('Europe/Kyiv'),
+  blockedTitleWords: profileFields.blockedTitleWords.default([]),
+  blockedDescriptionWords: profileFields.blockedDescriptionWords.default([]),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
 

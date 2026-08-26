@@ -50,6 +50,7 @@ const settings: AppSettings = {
   profile: {
     excludedLocations: ['onsite: usa'], allowedEmploymentTypes: [],
     minSalaryUsd: null, timezone: 'Europe/Kyiv',
+    blockedTitleWords: [], blockedDescriptionWords: [],
   },
   rubric: {
     version: '1', body: 'r',

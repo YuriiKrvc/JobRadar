@@ -1,4 +1,26 @@
-import { RubricWeightsSchema, SourceInputSchema } from './schema';
+import { ProfileSchema, ProfileBodySchema, RubricWeightsSchema, SourceInputSchema } from './schema';
+
+describe('ProfileSchema', () => {
+  it('defaults the blocked-word lists for a profile written before they existed', () => {
+    const parsed = ProfileSchema.parse({
+      excludedLocations: [], allowedEmploymentTypes: [],
+      minSalaryUsd: null, timezone: 'Europe/Kyiv',
+    });
+    expect(parsed.blockedTitleWords).toEqual([]);
+    expect(parsed.blockedDescriptionWords).toEqual([]);
+  });
+
+  it('requires both blocked-word lists on the wire', () => {
+    const body = {
+      excludedLocations: [], allowedEmploymentTypes: [],
+      minSalaryUsd: null, timezone: 'Europe/Kyiv',
+    };
+    expect(ProfileBodySchema.safeParse(body).success).toBe(false);
+    expect(ProfileBodySchema.safeParse({
+      ...body, blockedTitleWords: ['php'], blockedDescriptionWords: [],
+    }).success).toBe(true);
+  });
+});
 
 describe('RubricWeightsSchema', () => {
   const valid = { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10 };

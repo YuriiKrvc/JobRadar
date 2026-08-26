@@ -8,6 +8,7 @@ const WEIGHTS = { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growt
 const PROFILE = {
   excludedLocations: ['United States'], allowedEmploymentTypes: ['full-time'],
   minSalaryUsd: 5000, timezone: 'Europe/Kyiv',
+  blockedTitleWords: [], blockedDescriptionWords: [],
 };
 
 function fakeRepo() {
@@ -137,6 +138,7 @@ describe('PUT /api/settings/profile', () => {
     const next = {
       excludedLocations: [], allowedEmploymentTypes: [],
       minSalaryUsd: null, timezone: 'Europe/Berlin',
+      blockedTitleWords: [], blockedDescriptionWords: [],
     };
     const res = await request(app.getHttpServer())
       .put('/api/settings/profile').send(next).expect(200);

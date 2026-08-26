@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SettingsRepository } from './settings.repository';
 import { toSourcesConfig } from './to-sources-config';
-import type { AppSettings } from './schema';
+import { ProfileSchema, type AppSettings } from './schema';
 
 @Injectable()
 export class SettingsService {
@@ -25,7 +25,11 @@ export class SettingsService {
         body: row.rubricBody,
         weights: row.rubricWeights,
       },
-      profile: row.profile,
+      // Lenient parse, not a straight jsonb read: a row written before the
+      // blocked-word fields existed has no such keys, and this is the one
+      // place a legacy shape reaches the runtime. ProfileSchema's defaults
+      // fill them in so matchBlockedWord never sees undefined.
+      profile: ProfileSchema.parse(row.profile),
       sources: toSourcesConfig(sourceRows),
     };
   }

@@ -108,7 +108,7 @@ export class PipelineService {
         await this.repo.upsert(posting);
         if (await this.repo.hasScore(posting.id)) { s.skippedDuplicate += 1; continue; }
 
-        const filter = applyHardFilters(posting, settings.profile);
+        const filter = applyHardFilters(posting, settings.profile, settings.profile.blockedDescriptionWords);
         if (!filter.passed) {
           s.hardFiltered += 1;
           await this.repo.insertScore(posting.id, {

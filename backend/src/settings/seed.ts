@@ -33,6 +33,8 @@ const DEFAULT_PROFILE = {
   allowedEmploymentTypes: [],
   minSalaryUsd: null,
   timezone: 'Europe/Kyiv',
+  blockedTitleWords: [],
+  blockedDescriptionWords: [],
 };
 
 export async function seed(db: Database, configDir: string): Promise<SeedOutcome> {

@@ -7,6 +7,8 @@ const profile: Profile = {
   allowedEmploymentTypes: ['full-time'],
   minSalaryUsd: 4000,
   timezone: 'Europe/Kyiv',
+  blockedTitleWords: [],
+  blockedDescriptionWords: [],
 };
 const rubric: Rubric = {
   version: '1',
