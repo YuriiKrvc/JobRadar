@@ -262,3 +262,31 @@ textarea.input { min-height: 90px; resize: vertical; }
 .source-form-error { margin-top: 18px; padding: 11px 14px; font-size: 13.5px; line-height: 1.5; background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
 .source-form-actions { display: flex; align-items: center; gap: 12px; margin-top: var(--space-4); flex-wrap: wrap; }
 .source-form-missing { margin: 0; font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 55%, transparent); }
+
+/* ── Sources table ────────────────────────────────────────────────────── */
+.sources-table { table-layout: fixed; }
+.sources-table .col-on { width: 56px; }
+.sources-table .col-name { width: 150px; }
+.sources-table .col-edit { width: 66px; }
+.sources-table .col-delete { width: 70px; }
+.sources-table .row-disabled { opacity: 0.5; }
+/* The open row tints so it is obvious which board is being edited. */
+.sources-table .row-editing { background: color-mix(in srgb, var(--color-accent) 6%, transparent); }
+/* The name is the identity that lands on every posting and in the health
+   panel, so it is set in the heading serif. */
+.source-name { font-size: 14px; font-family: var(--font-heading); font-weight: var(--font-heading-weight); }
+.source-url { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+.link-cyan { font-size: 12.5px; color: var(--color-accent); border-bottom: 1px solid currentColor; }
+.link-magenta { font-size: 12.5px; color: var(--color-accent-2-700); }
+.source-form-cell { padding: 0 0 22px; border-bottom: 0; }
+.add-source-cell { padding-top: 14px; border-bottom: 0; }
+.add-source-line { font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 14.5px; color: var(--color-accent); }
+
+.switch {
+  display: inline-flex; align-items: center; width: 38px; height: 20px; padding: 2px;
+  cursor: pointer; background: var(--color-neutral-300);
+  border: 1px solid var(--color-divider); border-radius: 10px;
+}
+.switch[aria-checked='true'] { background: var(--color-accent); }
+.switch-knob { width: 14px; height: 14px; border-radius: 50%; background: var(--color-neutral-100); }
+.switch[aria-checked='true'] .switch-knob { margin-left: 16px; background: var(--color-bg); }
