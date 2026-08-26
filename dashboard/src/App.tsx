@@ -10,6 +10,26 @@ import type { PostingFilters } from './api/types';
 
 type Tab = 'postings' | 'settings';
 
+// A bare time-of-day ("14:05") cannot answer the question the meta strip
+// exists to answer — is the worker still running? — because it reads the
+// same whether the run was twenty minutes ago or six days ago. Render
+// staleness instead: minutes/hours within the last day, then days. `now` is
+// a parameter, not `new Date()` inline, so a test can freeze it instead of
+// asserting against the real clock.
+export function formatLastRun(ranAtIso: string, now: Date): string {
+  const ranAt = new Date(ranAtIso);
+  const diffMin = Math.floor((now.getTime() - ranAt.getTime()) / 60000);
+
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay} day${diffDay === 1 ? '' : 's'} ago`;
+}
+
 export function App() {
   const [tab, setTab] = useState<Tab>('postings');
   const [filters, setFilters] = useState<PostingFilters>({});
@@ -30,10 +50,10 @@ export function App() {
 
   const runs = health.data ?? [];
   // The meta strip is built from what App already has: no new request.
-  const lastRun = runs.length === 0 ? 'never'
-    : new Date(runs.map((h) => h.ranAt).sort().at(-1)!).toLocaleTimeString([], {
-        hour: '2-digit', minute: '2-digit',
-      });
+  // ISO-8601 UTC timestamps sort correctly as strings, so the lexicographic
+  // sort picks the newest row regardless of input order.
+  const newestRanAt = runs.length === 0 ? null : [...runs].map((h) => h.ranAt).sort().at(-1)!;
+  const lastRun = newestRanAt === null ? 'never' : formatLastRun(newestRanAt, new Date());
   const scored = (postings.data ?? []).length;
 
   return (

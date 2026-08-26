@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { App } from '../src/App';
+import { App, formatLastRun } from '../src/App';
 import type { HealthRow, PostingRow } from '../src/api/types';
 
 const posting = {
@@ -108,6 +108,55 @@ describe('App', () => {
     stubFetch({ health: [], postings: [] });
     render(<App />);
     expect(await screen.findByText(/Last run never/)).toBeInTheDocument();
+  });
+
+  it('reads a recent run and a stale run visibly differently', async () => {
+    vi.setSystemTime(new Date('2026-08-26T12:00:00.000Z'));
+    stubFetch({ health: [{ source: 'djinni', status: 'ok', ranAt: '2026-08-26T11:30:00.000Z', error: null }] });
+    render(<App />);
+    expect(await screen.findByText(/Last run 30m ago/)).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it('reads a run from several days ago in days, not a bare time', async () => {
+    vi.setSystemTime(new Date('2026-08-26T12:00:00.000Z'));
+    stubFetch({ health: [{ source: 'djinni', status: 'ok', ranAt: '2026-08-20T12:00:00.000Z', error: null }] });
+    render(<App />);
+    expect(await screen.findByText(/Last run 6 days ago/)).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it('picks the newest of several health rows regardless of their order', async () => {
+    vi.setSystemTime(new Date('2026-08-26T12:00:00.000Z'));
+    stubFetch({
+      health: [
+        { source: 'a', status: 'ok', ranAt: '2026-08-24T10:00:00.000Z', error: null },
+        { source: 'c', status: 'ok', ranAt: '2026-08-26T10:00:00.000Z', error: null },
+        { source: 'b', status: 'ok', ranAt: '2026-08-25T10:00:00.000Z', error: null },
+      ],
+    });
+    render(<App />);
+    // Newest is 2026-08-26T10:00:00.000Z — two hours before the frozen clock.
+    expect(await screen.findByText(/Last run 2h ago/)).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+});
+
+describe('formatLastRun', () => {
+  it('reads minutes within the first hour', () => {
+    expect(formatLastRun('2026-08-26T11:45:00.000Z', new Date('2026-08-26T12:00:00.000Z'))).toBe('15m ago');
+  });
+
+  it('reads hours within the same day', () => {
+    expect(formatLastRun('2026-08-26T06:00:00.000Z', new Date('2026-08-26T12:00:00.000Z'))).toBe('6h ago');
+  });
+
+  it('reads days for anything a day or older', () => {
+    expect(formatLastRun('2026-08-20T12:00:00.000Z', new Date('2026-08-26T12:00:00.000Z'))).toBe('6 days ago');
+  });
+
+  it('singularises exactly one day', () => {
+    expect(formatLastRun('2026-08-25T11:00:00.000Z', new Date('2026-08-26T12:00:00.000Z'))).toBe('1 day ago');
   });
 });
 
