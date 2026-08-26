@@ -238,3 +238,27 @@ textarea.input { min-height: 90px; resize: vertical; }
 .rubric-bar > div { height: 8px; background: var(--color-accent); }
 .rubric-share { width: 44px; flex: none; text-align: right; font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 13px; }
 .rubric-zero { margin-top: 9px; font-size: 12.5px; color: var(--color-accent-2-800); }
+
+/* ── Source form ──────────────────────────────────────────────────────── */
+.source-form { padding: 18px 20px; background: var(--color-surface); }
+.source-form-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.source-form-head h4 { margin: 0; font-size: 17px; }
+.source-form-head p { margin: 0; font-size: 12.5px; max-width: 60ch; text-wrap: pretty; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+.source-form-group { margin: 18px 0 10px; font-size: 10px; letter-spacing: 0.1em; color: color-mix(in srgb, var(--color-text) 50%, transparent); }
+.source-fields { display: flex; flex-wrap: wrap; gap: 18px 22px; }
+.source-field { margin: 0; }
+.source-field-help { margin: 5px 0 0; font-size: 11.5px; line-height: 1.45; max-width: 44ch; text-wrap: pretty; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+/* Generated content, not a DOM text node: the asterisk must not join the
+   label's accessible name (it would turn "Name" into "Name *" for every
+   assistive-tech and getByLabelText lookup alike). aria-required on the
+   input carries the meaning for anyone who can't see the mark. */
+.source-field.required > label::after { content: ' *'; color: var(--color-accent-2-700); }
+.source-disclosure { margin-top: var(--space-4); font-size: 13px; color: var(--color-accent); border-bottom: 1px solid currentColor; }
+.source-optional { padding-top: 16px; }
+.source-blocklists { display: flex; gap: 30px; flex-wrap: wrap; padding-top: 20px; }
+.source-blocklists > .field { flex: 1; min-width: 280px; }
+.source-blocklists .chip, .source-blocklists .chip-input { background: var(--color-bg); }
+.source-blocklists-note { margin: 11px 0 0; font-size: 11.5px; line-height: 1.5; max-width: 70ch; text-wrap: pretty; color: color-mix(in srgb, var(--color-text) 60%, transparent); }
+.source-form-error { margin-top: 18px; padding: 11px 14px; font-size: 13.5px; line-height: 1.5; background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
+.source-form-actions { display: flex; align-items: center; gap: 12px; margin-top: var(--space-4); flex-wrap: wrap; }
+.source-form-missing { margin: 0; font-size: 12.5px; color: color-mix(in srgb, var(--color-text) 55%, transparent); }

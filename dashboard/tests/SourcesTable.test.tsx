@@ -30,8 +30,8 @@ afterEach(() => vi.unstubAllGlobals());
 async function fillRequired() {
   await userEvent.type(screen.getByLabelText('Name'), 'Beta');
   await userEvent.type(screen.getByLabelText('Listing URL'), 'https://beta.com/jobs');
-  await userEvent.type(screen.getByLabelText('Item (required)'), 'li.job');
-  await userEvent.type(screen.getByLabelText('Link (required)'), 'a');
+  await userEvent.type(screen.getByLabelText('Item'), 'li.job');
+  await userEvent.type(screen.getByLabelText('Link'), 'a');
 }
 
 it('lists a source by name and URL', async () => {
