@@ -153,7 +153,7 @@ describe('first-run banner', () => {
       }],
     });
     renderAt('/');
-    expect(await screen.findByRole('status')).toHaveTextContent(/finish setup/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/finish setup/i);
   });
 
   it('links the banner to the settings tab', async () => {
@@ -173,7 +173,7 @@ describe('first-run banner', () => {
     stubFetch({ health: [{ source: 'ats', status: 'ok', ranAt: '2026-08-25T10:00:00.000Z', error: null }] });
     renderAt('/');
     await screen.findByRole('tab', { name: /postings/i });
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 
@@ -191,7 +191,7 @@ describe('settings load failure banner', () => {
     });
     renderAt('/');
 
-    const banner = await screen.findByRole('status');
+    const banner = await screen.findByRole('alert');
     expect(banner).toHaveTextContent(/run the seeder/i);
     expect(banner).toHaveTextContent(/finish setup/i);
   });
@@ -202,7 +202,7 @@ describe('settings load failure banner', () => {
     });
     renderAt('/');
     await screen.findByRole('tab', { name: /postings/i });
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 

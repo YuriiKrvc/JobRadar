@@ -1,17 +1,18 @@
 import { useCallback, useMemo } from 'react';
-import { NavLink, Navigate, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import { fetchHealth, fetchPostings } from './api/client';
 import { fetchSettings } from './api/settings';
 import { useApi } from './hooks/useApi';
 import { parseFilters, toApiFilters, toSearchParams, type UiFilters } from './api/filters-url';
+import { groupByDay } from './postings/derive';
 import { DashboardDataProvider } from './context/DashboardData';
+import { Masthead } from './components/Masthead';
+import { SetupBanner } from './components/SetupBanner';
 import { PostingsPage } from './pages/PostingsPage';
 import { SettingsPage } from './pages/SettingsPage';
 
 export function App() {
   const [params, setParams] = useSearchParams();
-  const { pathname } = useLocation();
-  const onSettings = pathname.startsWith('/settings');
 
   const ui = useMemo(() => parseFilters(params), [params]);
   const setUi = useCallback(
@@ -39,32 +40,25 @@ export function App() {
     (h) => h.source === 'settings' && h.status === 'error',
   );
 
+  // Derived from the SAME day bucket the feed uses, so the masthead's "N new"
+  // and the Today divider's count cannot disagree.
+  const newCount = useMemo(() => {
+    const groups = groupByDay(postings.data ?? [], new Date(), true);
+    return groups[0]?.label === 'Today' ? groups[0].rows.length : 0;
+  }, [postings.data]);
+
   return (
     <DashboardDataProvider value={{ postings, health, settings, ui, setUi }}>
-      <h1>JobRadar</h1>
+      <Masthead
+        runAt={health.data?.[0]?.ranAt ?? null}
+        newCount={newCount}
+        scoredCount={postings.data?.length ?? 0}
+        version={settings.data?.version ?? null}
+      />
 
       {settingsError && (
-        <p className="banner" role="status">
-          JobRadar is not scoring yet —{' '}
-          {settingsError.error ?? 'the last run could not read its settings'}.{' '}
-          <NavLink to="/settings">Finish setup</NavLink>
-        </p>
+        <SetupBanner message={settingsError.error ?? 'the last run could not read its settings'} />
       )}
-
-      <nav className="tabs" role="tablist">
-        <NavLink
-          to="/" end role="tab" aria-selected={!onSettings}
-          className={({ isActive }) => (isActive ? 'tab tab-active' : 'tab')}
-        >
-          Postings
-        </NavLink>
-        <NavLink
-          to="/settings" role="tab" aria-selected={onSettings}
-          className={({ isActive }) => (isActive ? 'tab tab-active' : 'tab')}
-        >
-          Settings
-        </NavLink>
-      </nav>
 
       <Routes>
         <Route path="/" element={<PostingsPage />} />
