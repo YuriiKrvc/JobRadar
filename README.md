@@ -25,10 +25,14 @@ files nor the top-level `name:` key this project depends on.
 
 ```bash
 cd backend
-cp .env.example .env && $EDITOR .env   # API key, Telegram token + chat id, CORS_ORIGIN
+cp .env.example .env && $EDITOR .env   # Telegram token + chat id, CORS_ORIGIN
 docker compose up -d --build
 curl localhost:8080/api/health
 ```
+
+Classification needs an Ollama running on the host, with one setup step
+compose cannot do for you — see [The classifier](#the-classifier-a-local-model-by-default)
+before expecting any posting to get scored.
 
 The dashboard is a separate project with its own lifecycle. Continuing in the
 same shell (still inside `backend/` from the block above):
@@ -248,20 +252,68 @@ Response shapes live in `backend/src/api/api.schema.ts` and are mirrored in
 `dashboard/src/api/types.ts`. **Changing one means changing the other** — that
 duplication is the deliberate price of keeping the projects independent.
 
-## Switching to a local model
+## The classifier: a local model by default
 
-Set these in `backend/.env` instead of `ANTHROPIC_API_KEY`:
+Classification runs against an Ollama on the **host machine**, not in this
+compose stack. Docker Desktop cannot expose the Mac's GPU to a Linux
+container, so a containerised model would run CPU-only — minutes per posting
+instead of seconds.
+
+That means one prerequisite `docker-compose up` cannot satisfy for you:
+
+```bash
+ollama pull llama3.1
+
+# Ollama binds 127.0.0.1 by default, and a host loopback socket is NOT
+# reachable from a container: host.docker.internal resolves to the host's
+# routable interface. Without this, every classification fails ECONNREFUSED.
+launchctl setenv OLLAMA_HOST 0.0.0.0   # macOS; then restart Ollama
+```
+
+**While `OLLAMA_HOST=0.0.0.0` is set, Ollama accepts connections from your
+local network.** There is no auth on it — the same caveat as this project's
+Postgres, published on 5433 with no host prefix.
+
+The matching `backend/.env` (already the default in `.env.example`):
 
 ```
 LLM_BASE_URL=http://host.docker.internal:11434/v1
-LLM_MODEL=qwen3:14b
+LLM_MODEL=llama3.1
 LLM_JSON_SCHEMA=true
+# LLM_TIMEOUT_MS=120000
 ```
 
-Scores from different models are not comparable — every score row records the
-provider that produced it, re-running adds rows rather than overwriting, and the
-notify threshold is settable per provider via
-`NOTIFY_THRESHOLD_<PROVIDER_ID>` (non-alphanumerics replaced with `_`).
+Prove the worker can actually reach it before trusting any score:
+
+```bash
+cd backend && docker-compose exec worker sh -c 'wget -qO- $LLM_BASE_URL/models'
+```
+
+A JSON list of models means you are done. `Connection refused` means
+`OLLAMA_HOST` is not in effect — restart Ollama after setting it.
+
+`LLM_BASE_URL` is free-form, so the same variable points at a LAN address or a
+remote GPU box with no compose change. Unset it and the worker falls back to
+`ANTHROPIC_API_KEY`.
+
+`LLM_TIMEOUT_MS` (default 120000) aborts a stalled completion. The pipeline
+awaits classification inline, so without it one hung request stalls the whole
+tick. An abort leaves the posting unscored and the next tick retries it.
+
+### Scores from two models are not comparable
+
+Every score row records the provider that produced it, and re-running adds rows
+rather than overwriting. Two consequences:
+
+- **Postings already scored are never re-scored.** The dedup gate is "has a
+  score row", so switching models does not revisit your history — the local
+  model judges only postings first seen after the switch. Re-considering one
+  means deleting its score row by hand.
+- The notify threshold is per provider, `NOTIFY_THRESHOLD_<PROVIDER_ID>` with
+  non-alphanumerics replaced by `_`. For the default above the provider id is
+  `openai-compat:llama3.1`, so the variable is
+  **`NOTIFY_THRESHOLD_OPENAI_COMPAT_LLAMA3_1`**. Expect to tune it: a local
+  model's numbers will not match a frontier model's.
 
 ## Tuning the rubric
 
