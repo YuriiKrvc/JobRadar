@@ -88,10 +88,10 @@ describe('App', () => {
     renderAt('/');
     await waitFor(() => expect(screen.getByText('Senior Node Engineer')).toBeInTheDocument());
 
-    await userEvent.selectOptions(screen.getByLabelText(/verdict/i), 'MAYBE');
+    await userEvent.click(screen.getByRole('button', { name: /^strong$/i }));
     await waitFor(() => {
       const urls = fetchMock.mock.calls.map((c) => String(c[0]));
-      expect(urls.some((u) => u.includes('verdict=MAYBE'))).toBe(true);
+      expect(urls.some((u) => u.includes('verdict=STRONG'))).toBe(true);
     });
   });
 

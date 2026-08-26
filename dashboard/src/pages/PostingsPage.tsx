@@ -1,5 +1,5 @@
 import { useDashboardData } from '../context/DashboardData';
-import { Filters } from '../components/Filters';
+import { Filters } from '../components/postings/Filters';
 import { PostingsTable } from '../components/PostingsTable';
 import { SourceHealth } from '../components/SourceHealth';
 
@@ -8,7 +8,7 @@ export function PostingsPage() {
 
   return (
     <>
-      <Filters rows={postings.data ?? []} />
+      <Filters rows={postings.data ?? []} resultCount={postings.data?.length ?? 0} />
 
       {postings.loading && <p className="state">Loading…</p>}
       {postings.error && <p className="state" role="alert">Error: {postings.error}</p>}
