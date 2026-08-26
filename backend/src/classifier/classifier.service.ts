@@ -19,6 +19,18 @@ function parse(raw: string): RawVerdict {
   return RawVerdictSchema.parse(extractJson(raw));
 }
 
+/**
+ * True for the rejection `AbortSignal.timeout()` produces (a `DOMException`
+ * named `TimeoutError`) and for an explicit abort (`AbortError`). Matched by
+ * `name`, not by message text, which is not a stable contract. Deliberately
+ * not `err instanceof Error`: Node's `DOMException` does not inherit from
+ * `Error`, so that check would silently never match.
+ */
+function isAbortError(err: unknown): boolean {
+  const name = (err as { name?: unknown } | null)?.name;
+  return name === 'TimeoutError' || name === 'AbortError';
+}
+
 @Injectable()
 export class ClassifierService {
   constructor(@Inject(LLM_PROVIDER) private readonly provider: LLMProvider) {}
@@ -36,6 +48,14 @@ export class ClassifierService {
       const first = await this.provider.complete({ system, user, schema: VERDICT_JSON_SCHEMA });
       parsed = parse(first.raw);
     } catch (firstError) {
+      // A timeout or explicit abort means the model never answered at all:
+      // there is no "previous response" to correct, so telling it otherwise
+      // in a repair prompt is both false and doubles the worst-case latency
+      // for a request that was never going to succeed. Let it propagate so
+      // the posting is left unscored and retried next tick, same as any
+      // other unclassifiable posting.
+      if (isAbortError(firstError)) throw firstError;
+
       const detail = firstError instanceof Error ? firstError.message : String(firstError);
       const repairUser = [
         user,

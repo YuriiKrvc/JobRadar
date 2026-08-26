@@ -38,6 +38,11 @@ services:
   worker:
     build: { context: ., target: runtime }
     env_file: [.env]
+    # The classifier talks to an Ollama running on the host, not in this stack:
+    # Docker Desktop cannot expose Metal to a Linux container, so a
+    # containerised model would run CPU-only. Docker Desktop resolves this name
+    # already; the explicit mapping is what makes the same .env work on Linux.
+    extra_hosts: ["host.docker.internal:host-gateway"]
     command: ["node", "dist/worker.main.js"]
     restart: unless-stopped
     depends_on:
@@ -60,6 +65,7 @@ services:
     profiles: ["dev"]
     build: { context: ., target: dev }
     env_file: [.env]
+    extra_hosts: ["host.docker.internal:host-gateway"]   # see worker above
     volumes:
       - ./src:/app/src:ro
     # tsc, not tsx: esbuild drops design:paramtypes, which breaks Nest's

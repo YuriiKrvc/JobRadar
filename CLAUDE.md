@@ -135,7 +135,22 @@ config at module construction:
 - `LLM_PROVIDER` — `selectProvider(env)` in `classifier.module.ts`:
   `LLM_BASE_URL` → OpenAI-compatible, else `ANTHROPIC_API_KEY` → Anthropic, else
   throw. The token is defined in `providers/types.ts`, not the module, to break a
-  DI cycle. `providers/fake.ts` exists for tests.
+  DI cycle. `providers/fake.ts` exists for tests. The default deployment is the
+  OpenAI-compatible branch against an Ollama on the **host** — Ollama is
+  deliberately absent from `docker-compose.yml`, because Docker Desktop cannot
+  expose Metal to a Linux container and a containerised model would run
+  CPU-only. `worker` and `worker-dev` carry
+  `extra_hosts: host.docker.internal:host-gateway` for that; `api` does not,
+  because it never classifies. The OpenAI-compatible provider aborts after
+  `LLM_TIMEOUT_MS` (default 120000, `resolveTimeoutMs` falls back on anything
+  non-positive because `AbortSignal.timeout(NaN)` aborts instantly) — the
+  pipeline awaits classification inline, so an un-timed-out hang stalls the
+  whole tick. `ClassifierService.classify` distinguishes an abort from a parse
+  failure and does not send the repair-prompt retry for an abort, since there
+  is no "previous response" to correct — a genuinely unresponsive model costs
+  one `LLM_TIMEOUT_MS` per posting, not two. A model that answers but returns
+  unparsable JSON twice still costs up to two round trips serially. Either way
+  the posting is left unscored, which the dedup gate retries next tick.
 - `BUILD_SOURCE` — a factory taking **one** `SourceSpec` and returning one
   `JobSource`. `PipelineService` calls it once per enabled source, inside the
   loop. Per-spec rather than per-run because the pipeline needs each source's
