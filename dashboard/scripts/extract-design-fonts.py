@@ -43,6 +43,9 @@ os.makedirs(FONT_DIR, exist_ok=True)
 # Name each file after the face that references it: the subset comes from the
 # CSS comment above the rule, the style and weight from the rule itself.
 subsets = re.findall(r'/\* ([a-z-]+) \*/\s*@font-face', css)
+if len(faces) != len(subsets):
+    sys.exit(f'{len(faces)} @font-face rules but {len(subsets)} subset comments -- a comment is not adjacent to its rule')
+
 out, written = [], {}
 for face, subset in zip(faces, subsets):
     uuid = re.search(r'url\("([a-f0-9-]{36})"\)', face).group(1)
