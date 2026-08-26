@@ -64,6 +64,9 @@ for face, subset in zip(faces, subsets):
 
 header = ('/* Source Serif 4, extracted from the delivered design doc by\n'
           '   scripts/extract-design-fonts.py. Do not edit by hand.\n'
-          '   Self-hosted on purpose: the dashboard must not depend on a font CDN. */\n\n')
+          '   Self-hosted on purpose: the dashboard must not depend on a font CDN.\n'
+          '   Twelve files back eighteen rules on purpose: the subsets are variable\n'
+          '   fonts carrying a weight axis, so a font-weight: 600 rule correctly\n'
+          '   points at a file named ...-400.woff2 — one file serves both weights. */\n\n')
 open(OUT_CSS, 'w', encoding='utf-8').write(header + '\n\n'.join(out) + '\n')
 print(f'{len(written)} woff2 files -> {FONT_DIR}, {len(out)} @font-face rules -> {OUT_CSS}')

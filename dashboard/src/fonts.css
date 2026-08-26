@@ -1,6 +1,9 @@
 /* Source Serif 4, extracted from the delivered design doc by
    scripts/extract-design-fonts.py. Do not edit by hand.
-   Self-hosted on purpose: the dashboard must not depend on a font CDN. */
+   Self-hosted on purpose: the dashboard must not depend on a font CDN.
+   Twelve files back eighteen rules on purpose: the subsets are variable
+   fonts carrying a weight axis, so a font-weight: 600 rule correctly
+   points at a file named ...-400.woff2 — one file serves both weights. */
 
 @font-face {
   font-family: 'Source Serif 4';
