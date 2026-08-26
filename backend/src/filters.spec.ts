@@ -82,6 +82,12 @@ describe('matchBlockedWord', () => {
     expect(matchBlockedWord('Node and PHP', ['  ', 'php', 'node'])).toBe('php');
   });
 
+  it('returns the trimmed entry, so a padded one cannot reach the reason string', () => {
+    // The return value is persisted in scores.reasoning and shown in the
+    // dashboard, so `" php "` must not carry its padding along.
+    expect(matchBlockedWord('Senior PHP Developer', [' php '])).toBe('php');
+  });
+
   it('returns null for an empty list', () => {
     expect(matchBlockedWord('anything', [])).toBeNull();
   });
@@ -120,6 +126,11 @@ describe('applyHardFilters description words', () => {
 
   it('rejects a blocked description word and names it', () => {
     expect(applyHardFilters(p, profile, ['relocation required']))
+      .toEqual({ passed: false, rule: 'description-word:relocation required' });
+  });
+
+  it('names a padded entry without its whitespace in the rule', () => {
+    expect(applyHardFilters(p, profile, ['  relocation required  ']))
       .toEqual({ passed: false, rule: 'description-word:relocation required' });
   });
 

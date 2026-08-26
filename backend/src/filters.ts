@@ -38,7 +38,10 @@ export function matchBlockedWord(text: string, words: string[]): string | null {
     const lead = /^[\p{L}\p{N}]/u.test(entry) ? `(?<!${alnum})` : '';
     const tail = /[\p{L}\p{N}]$/u.test(entry) ? `(?!${alnum})` : '';
 
-    if (new RegExp(`${lead}${escapeRegex(entry)}${tail}`, 'iu').test(text)) return word;
+    // The trimmed entry, not the raw one: the caller writes this into
+    // scores.reasoning, which is persisted and shown in the dashboard, so a
+    // list entry saved as " php " must not leave stray whitespace there.
+    if (new RegExp(`${lead}${escapeRegex(entry)}${tail}`, 'iu').test(text)) return entry;
   }
   return null;
 }
