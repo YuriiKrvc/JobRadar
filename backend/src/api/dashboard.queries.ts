@@ -37,6 +37,7 @@ export class DashboardQueries {
       providerId: scores.providerId,
       settingsVersion: scores.settingsVersion,
       scoredAt: scores.scoredAt,
+      subscores: scores.subscores,
     })
       .from(latest)
       .innerJoin(scores, eq(scores.id, latest.maxId))
