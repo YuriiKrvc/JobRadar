@@ -34,7 +34,7 @@ const settings: AppSettings = {
     body: 'score five dimensions',
     weights: { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10 },
   },
-  sources: { ats: [], djinni: [], dou: [] },
+  sources: [],
 };
 
 async function service(responses: string[]) {

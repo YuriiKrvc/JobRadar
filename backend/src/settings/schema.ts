@@ -67,16 +67,6 @@ export interface SourceSpec {
   blockedDescriptionWords: string[];
 }
 
-export const SourcesSchema = z.object({
-  ats: z.array(z.object({
-    board: z.enum(['greenhouse', 'lever', 'ashby']),
-    slug: z.string(),
-  })).default([]),
-  djinni: z.array(z.string().url()).default([]),
-  dou: z.array(z.string().url()).default([]),
-});
-export type SourcesConfig = z.infer<typeof SourcesSchema>;
-
 export const RubricWeightsSchema = z
   .object({
     coreStack: z.number().int().min(0).max(1000),
@@ -98,15 +88,13 @@ export const RubricBodySchema = z.object({
   weights: RubricWeightsSchema,
 }).strict();
 
-export const SourceInputSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('ats'),
-    board: z.enum(['greenhouse', 'lever', 'ashby']),
-    slug: z.string().min(1),
-  }).strict(),
-  z.object({ kind: z.literal('djinni'), url: z.string().url() }).strict(),
-  z.object({ kind: z.literal('dou'), url: z.string().url() }).strict(),
-]);
+export const SourceInputSchema = z.object({
+  name: z.string().min(1),
+  url: z.string().url(),
+  selectors: SelectorsSchema,
+  blockedTitleWords: z.array(z.string()).default([]),
+  blockedDescriptionWords: z.array(z.string()).default([]),
+}).strict();
 export type SourceInput = z.infer<typeof SourceInputSchema>;
 
 export const EnabledBodySchema = z.object({ enabled: z.boolean() }).strict();
@@ -122,16 +110,17 @@ export interface AppSettings {
   cv: string;
   rubric: Rubric;
   profile: Profile;
-  sources: SourcesConfig;
+  sources: SourceSpec[];
 }
 
 /**
  * What the one-shot importer reads off disk. Weights were never in rubric.md,
- * so a file import supplies DEFAULT_WEIGHTS separately.
+ * so a file import supplies DEFAULT_WEIGHTS separately. Sources are absent on
+ * purpose: a v1 sources.yaml carries no selectors, so it cannot produce a
+ * usable row, and an upgrading install re-adds its boards from the dashboard.
  */
 export interface FileConfig {
   cv: string;
   rubric: { version: string; body: string };
   profile: Profile;
-  sources: SourcesConfig;
 }

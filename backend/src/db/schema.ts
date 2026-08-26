@@ -4,7 +4,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import type { SubScores } from '../types';
-import type { Profile, RubricWeights } from '../settings/schema';
+import type { Profile, RubricWeights, Selectors } from '../settings/schema';
 
 export const verdictEnum = pgEnum('verdict', ['STRONG', 'MAYBE', 'NO']);
 export const runStatusEnum = pgEnum('run_status', ['ok', 'error']);
@@ -55,8 +55,6 @@ export const runLog = pgTable('run_log', {
   ranAt: timestamp('ran_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const sourceKindEnum = pgEnum('source_kind', ['ats', 'djinni', 'dou']);
-
 export const appSettings = pgTable('app_settings', {
   // A boolean primary key fixed at true is how a single-row table is spelled:
   // any second insert collides on the key.
@@ -83,18 +81,16 @@ export const appSettings = pgTable('app_settings', {
 
 export const sources = pgTable('sources', {
   id: uuid('id').primaryKey().defaultRandom(),
-  kind: sourceKindEnum('kind').notNull(),
-  board: text('board'),
-  slug: text('slug'),
-  url: text('url'),
+  // Also the value written to postings.source and used as JobSource.id, which
+  // is what run_log records — hence unique, so a failing board is identifiable.
+  name: text('name').notNull(),
+  url: text('url').notNull(),
+  selectors: jsonb('selectors').$type<Selectors>().notNull(),
+  blockedTitleWords: text('blocked_title_words').array().notNull().default(sql`'{}'::text[]`),
+  blockedDescriptionWords: text('blocked_description_words').array().notNull().default(sql`'{}'::text[]`),
   enabled: boolean('enabled').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  check('sources_ats_has_board_and_slug',
-    sql`(${t.kind} = 'ats') = (${t.board} IS NOT NULL) AND (${t.kind} = 'ats') = (${t.slug} IS NOT NULL)`),
-  check('sources_url_only_for_non_ats',
-    sql`(${t.kind} = 'ats') = (${t.url} IS NULL)`),
-  // NULLS NOT DISTINCT makes ON CONFLICT DO NOTHING work for rows whose
-  // identity columns are null; without it every djinni row is "distinct".
-  unique('sources_identity_uniq').on(t.kind, t.board, t.slug, t.url).nullsNotDistinct(),
+  unique('sources_url_uniq').on(t.url),
+  unique('sources_name_uniq').on(t.name),
 ]);

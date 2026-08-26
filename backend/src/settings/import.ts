@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { ProfileSchema, SourcesSchema, type FileConfig } from './schema';
+import { ProfileSchema, type FileConfig } from './schema';
 
 function read(dir: string, name: string): string {
   const path = join(dir, name);
@@ -32,6 +32,8 @@ export function loadConfig(dir: string): FileConfig {
     cv: read(dir, 'cv.md'),
     rubric: parseRubric(read(dir, 'rubric.md')),
     profile: ProfileSchema.parse(parseYaml(read(dir, 'profile.yaml'))),
-    sources: SourcesSchema.parse(parseYaml(read(dir, 'sources.yaml'))),
+    // sources.yaml is deliberately not read: a v1 entry is a board plus a slug
+    // or a bare URL, with no selectors, so it cannot produce a usable row. An
+    // upgrading install re-adds its boards through the dashboard.
   };
 }

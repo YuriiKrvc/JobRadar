@@ -4,7 +4,7 @@ import { DB } from '../db/db.module';
 import type { Database } from '../db/client';
 import { appSettings, sources } from '../db/schema';
 import type { Profile, RubricWeights, SourceInput } from './schema';
-import type { SourceRow } from './to-sources-config';
+import type { SourceRow } from './to-source-specs';
 
 export type AppSettingsRow = typeof appSettings.$inferSelect;
 
@@ -64,12 +64,8 @@ export class SettingsRepository {
   }
 
   async addSource(input: SourceInput): Promise<SourceRow> {
-    const values = input.kind === 'ats'
-      ? { kind: 'ats' as const, board: input.board, slug: input.slug }
-      : { kind: input.kind, url: input.url };
-
     try {
-      const [row] = await this.db.insert(sources).values(values).returning();
+      const [row] = await this.db.insert(sources).values(input).returning();
       return row!;
     } catch (err) {
       throw unwrapDriverError(err);

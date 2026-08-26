@@ -50,34 +50,39 @@ describe('RubricWeightsSchema', () => {
 });
 
 describe('SourceInputSchema', () => {
-  it('accepts an ats source with board and slug', () => {
-    const input = { kind: 'ats', board: 'greenhouse', slug: 'acme' };
+  const valid = {
+    name: 'Acme',
+    url: 'https://acme.com/careers',
+    selectors: { item: 'li.job', link: 'a' },
+  };
+
+  it('defaults both blocklists to empty', () => {
+    expect(SourceInputSchema.parse(valid)).toEqual({
+      ...valid, blockedTitleWords: [], blockedDescriptionWords: [],
+    });
+  });
+
+  it('keeps the blocklists it is given', () => {
+    const input = { ...valid, blockedTitleWords: ['intern'], blockedDescriptionWords: ['onsite'] };
     expect(SourceInputSchema.parse(input)).toEqual(input);
   });
 
-  it('accepts a djinni source with a url', () => {
-    const input = { kind: 'djinni', url: 'https://djinni.co/jobs/keyword-node/' };
-    expect(SourceInputSchema.parse(input)).toEqual(input);
-  });
-
-  it('rejects a djinni source carrying a slug', () => {
-    expect(() => SourceInputSchema.parse({
-      kind: 'djinni', url: 'https://djinni.co/jobs/', slug: 'acme',
-    })).toThrow();
-  });
-
-  it('rejects an ats source with no slug', () => {
-    expect(() => SourceInputSchema.parse({ kind: 'ats', board: 'greenhouse' })).toThrow();
-  });
-
-  it('rejects an unknown board', () => {
-    expect(() => SourceInputSchema.parse({
-      kind: 'ats', board: 'workday', slug: 'acme',
-    })).toThrow();
+  it('rejects an empty name', () => {
+    expect(() => SourceInputSchema.parse({ ...valid, name: '' })).toThrow();
   });
 
   it('rejects a url that is not a url', () => {
-    expect(() => SourceInputSchema.parse({ kind: 'dou', url: 'not-a-url' })).toThrow();
+    expect(() => SourceInputSchema.parse({ ...valid, url: 'not-a-url' })).toThrow();
+  });
+
+  it('rejects selectors missing item or link', () => {
+    expect(() => SourceInputSchema.parse({ ...valid, selectors: { item: 'li' } })).toThrow();
+  });
+
+  // The old shape carried a kind discriminator; a client still sending it must
+  // fail loudly rather than silently storing a source with no selectors.
+  it('rejects an unknown key such as the old kind discriminator', () => {
+    expect(() => SourceInputSchema.parse({ ...valid, kind: 'ats' })).toThrow();
   });
 });
 

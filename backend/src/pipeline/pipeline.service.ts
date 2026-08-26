@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PostingsRepository } from '../db/postings.repository';
 import { ClassifierService } from '../classifier/classifier.service';
-import { BUILD_SOURCES, type BuildSources } from '../sources/sources.module';
+import { BUILD_SOURCE, type BuildSource } from '../sources/sources.module';
 import { SettingsService } from '../settings/settings.service';
 import { NotifyConfig } from '../notify/notify.config';
 import { NOTIFIER, type Notifier } from '../notify/types';
@@ -36,8 +36,7 @@ const ZERO_SUBSCORES = {
  */
 export function incompleteReason(s: AppSettings): string | null {
   if (s.cv.trim() === '') return 'no CV';
-  const enabled = s.sources.ats.length + s.sources.djinni.length + s.sources.dou.length;
-  if (enabled === 0) return 'no enabled sources';
+  if (s.sources.length === 0) return 'no enabled sources';
   return null;
 }
 
@@ -50,7 +49,7 @@ export class PipelineService {
     private readonly classifier: ClassifierService,
     private readonly settings: SettingsService,
     private readonly notifyConfig: NotifyConfig,
-    @Inject(BUILD_SOURCES) private readonly buildSources: BuildSources,
+    @Inject(BUILD_SOURCE) private readonly buildSource: BuildSource,
     @Inject(NOTIFIER) private readonly notifier: Notifier,
     @Inject(LLM_PROVIDER) private readonly provider: LLMProvider,
   ) {}
@@ -85,9 +84,9 @@ export class PipelineService {
       return s;
     }
 
-    const sources = this.buildSources(settings.sources);
+    for (const spec of settings.sources) {
+      const source = this.buildSource(spec);
 
-    for (const source of sources) {
       let postings: RawPosting[];
       try {
         postings = await source.listPostings();

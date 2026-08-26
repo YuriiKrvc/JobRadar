@@ -15,7 +15,7 @@ function fixtureDir(): string {
 }
 
 describe('loadConfig', () => {
-  it('parses cv, rubric version, profile, and sources', () => {
+  it('parses cv, rubric version, and profile', () => {
     const cfg = loadConfig(fixtureDir());
     expect(cfg.cv).toContain('Senior Node engineer');
     expect(cfg.rubric.version).toBe('1');
@@ -26,7 +26,15 @@ describe('loadConfig', () => {
     expect(cfg.rubric.body).toBe('Score each dimension 0-100.\n');
     expect(cfg.profile.minSalaryUsd).toBe(4000);
     expect(cfg.profile.excludedLocations).toEqual(['Onsite: USA']);
-    expect(cfg.sources.ats[0]).toEqual({ board: 'greenhouse', slug: 'acme' });
+  });
+
+  // A v1 sources.yaml has no selectors, so it cannot produce a usable row: the
+  // importer must ignore the file rather than half-import boards that would
+  // then fail to fetch anything.
+  it('ignores a sources.yaml present on disk', () => {
+    const cfg = loadConfig(fixtureDir());
+    expect(cfg).not.toHaveProperty('sources');
+    expect(Object.keys(cfg).sort()).toEqual(['cv', 'profile', 'rubric']);
   });
 
   it('throws a named error when a required file is missing', () => {

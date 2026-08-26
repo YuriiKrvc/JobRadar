@@ -8,7 +8,9 @@ const ID = '11111111-1111-1111-1111-111111111111';
 
 function row(over: Record<string, unknown> = {}) {
   return {
-    id: ID, kind: 'ats', board: 'greenhouse', slug: 'acme', url: null,
+    id: ID, name: 'Acme', url: 'https://acme.com/careers',
+    selectors: { item: 'li.job', link: 'a' },
+    blockedTitleWords: [], blockedDescriptionWords: [],
     enabled: true, createdAt: new Date('2026-08-25T10:00:00Z'), ...over,
   };
 }
@@ -43,29 +45,34 @@ describe('GET /api/sources', () => {
 });
 
 describe('POST /api/sources', () => {
-  it('creates an ats source and returns 201', async () => {
+  const input = {
+    name: 'Acme', url: 'https://acme.com/careers',
+    selectors: { item: 'li.job', link: 'a' },
+  };
+
+  it('creates a source and returns 201', async () => {
     const { app, repo } = await build();
-    const input = { kind: 'ats', board: 'greenhouse', slug: 'acme' };
     const res = await request(app.getHttpServer()).post('/api/sources').send(input).expect(201);
 
-    expect(repo.addSource).toHaveBeenCalledWith(input);
+    // The Zod defaults reach the repository, so it can insert the body as-is.
+    expect(repo.addSource).toHaveBeenCalledWith({
+      ...input, blockedTitleWords: [], blockedDescriptionWords: [],
+    });
     expect(res.body.source.id).toBe(ID);
     await app.close();
   });
 
-  it('rejects a djinni source carrying a slug', async () => {
+  it('rejects a body with no selectors', async () => {
     const { app } = await build();
     await request(app.getHttpServer())
-      .post('/api/sources')
-      .send({ kind: 'djinni', url: 'https://djinni.co/jobs/a/', slug: 'acme' })
-      .expect(400);
+      .post('/api/sources').send({ name: 'Acme', url: 'https://acme.com/careers' }).expect(400);
     await app.close();
   });
 
-  it('rejects an unknown board', async () => {
+  it('rejects an unknown key', async () => {
     const { app } = await build();
     await request(app.getHttpServer())
-      .post('/api/sources').send({ kind: 'ats', board: 'workday', slug: 'acme' }).expect(400);
+      .post('/api/sources').send({ ...input, kind: 'ats' }).expect(400);
     await app.close();
   });
 
@@ -76,7 +83,7 @@ describe('POST /api/sources', () => {
     });
     const { app } = await build(repo);
     const res = await request(app.getHttpServer())
-      .post('/api/sources').send({ kind: 'dou', url: 'https://jobs.dou.ua/a/' }).expect(409);
+      .post('/api/sources').send(input).expect(409);
     expect(res.body.message).toMatch(/already/i);
     await app.close();
   });
@@ -87,8 +94,7 @@ describe('POST /api/sources', () => {
       throw Object.assign(new Error('connection reset'), { code: '08006' });
     });
     const { app } = await build(repo);
-    await request(app.getHttpServer())
-      .post('/api/sources').send({ kind: 'dou', url: 'https://jobs.dou.ua/a/' }).expect(500);
+    await request(app.getHttpServer()).post('/api/sources').send(input).expect(500);
     await app.close();
   });
 });
@@ -116,7 +122,7 @@ describe('PATCH /api/sources/:id', () => {
   it('rejects an attempt to edit a source identity', async () => {
     const { app } = await build();
     await request(app.getHttpServer())
-      .patch(`/api/sources/${ID}`).send({ enabled: true, slug: 'renamed' }).expect(400);
+      .patch(`/api/sources/${ID}`).send({ enabled: true, name: 'renamed' }).expect(400);
     await app.close();
   });
 

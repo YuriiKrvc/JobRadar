@@ -2,13 +2,13 @@ import { Test } from '@nestjs/testing';
 import { PipelineService } from './pipeline.service';
 import { PostingsRepository } from '../db/postings.repository';
 import { ClassifierService } from '../classifier/classifier.service';
-import { BUILD_SOURCES } from '../sources/sources.module';
+import { BUILD_SOURCE } from '../sources/sources.module';
 import { SettingsService } from '../settings/settings.service';
 import { NotifyConfig } from '../notify/notify.config';
 import { NOTIFIER } from '../notify/types';
 import { LLM_PROVIDER } from '../classifier/classifier.module';
 import type { JobSource, RawPosting } from '../types';
-import type { AppSettings } from '../settings/schema';
+import type { AppSettings, SourceSpec } from '../settings/schema';
 
 function posting(id: string, over: Partial<RawPosting> = {}): RawPosting {
   return {
@@ -20,6 +20,20 @@ function posting(id: string, over: Partial<RawPosting> = {}): RawPosting {
 
 function source(id: string, out: RawPosting[] | Error): JobSource {
   return { id, listPostings: async () => { if (out instanceof Error) throw out; return out; } };
+}
+
+// A spec whose `name` is the fake source's id: that is the key the injected
+// BUILD_SOURCE resolves on, exactly as the real factory names its adapter
+// after the spec.
+function spec(name: string): SourceSpec {
+  return {
+    id: `id-${name}`,
+    name,
+    url: `https://${name}.example.com/jobs`,
+    selectors: { item: 'li', link: 'a' },
+    blockedTitleWords: [],
+    blockedDescriptionWords: [],
+  };
 }
 
 function fakeRepo() {
@@ -56,7 +70,7 @@ const settings: AppSettings = {
     version: '1', body: 'r',
     weights: { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10 },
   },
-  sources: { ats: [{ board: 'greenhouse', slug: 'acme' }], djinni: [], dou: [] },
+  sources: [spec('a')],
 };
 
 async function build(over: {
@@ -73,6 +87,10 @@ async function build(over: {
     providerId: 'fake', settingsVersion: '1',
   }));
   const sources = over.sources ?? [source('a', [posting('a:1')])];
+  const byName = new Map(sources.map((src) => [src.id, src]));
+  // Unless the test pins its own settings, the snapshot's specs are derived
+  // from the fakes it passed in, so every spec resolves to one of them.
+  const loaded = over.settings ?? { ...settings, sources: sources.map((src) => spec(src.id)) };
 
   const moduleRef = await Test.createTestingModule({
     providers: [
@@ -81,9 +99,9 @@ async function build(over: {
       { provide: ClassifierService, useValue: { classify } },
       {
         provide: SettingsService,
-        useValue: { load: over.loadSettings ?? (async () => over.settings ?? settings) },
+        useValue: { load: over.loadSettings ?? (async () => loaded) },
       },
-      { provide: BUILD_SOURCES, useValue: () => sources },
+      { provide: BUILD_SOURCE, useValue: (s: SourceSpec) => byName.get(s.name)! },
       { provide: NotifyConfig, useValue: { thresholdFor: () => 50 } },
       { provide: NOTIFIER, useValue: over.notifier ?? { channel: 'telegram', send: async () => {} } },
       { provide: LLM_PROVIDER, useValue: { id: 'fake' } },
@@ -188,7 +206,7 @@ describe('incomplete settings', () => {
     const repo = fakeRepo();
     const { svc } = await build({
       repo,
-      settings: { ...settings, sources: { ats: [], djinni: [], dou: [] } },
+      settings: { ...settings, sources: [] },
     });
     const s = await svc.run();
 

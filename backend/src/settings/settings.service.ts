@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SettingsRepository } from './settings.repository';
-import { toSourcesConfig } from './to-sources-config';
+import { toSourceSpecs } from './to-source-specs';
 import { ProfileSchema, type AppSettings } from './schema';
 
 @Injectable()
@@ -30,7 +30,7 @@ export class SettingsService {
       // place a legacy shape reaches the runtime. ProfileSchema's defaults
       // fill them in so matchBlockedWord never sees undefined.
       profile: ProfileSchema.parse(row.profile),
-      sources: toSourcesConfig(sourceRows),
+      sources: toSourceSpecs(sourceRows),
     };
   }
 }

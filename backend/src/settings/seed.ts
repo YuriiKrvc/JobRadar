@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createDb, closeDb, type Database } from '../db/client';
-import { appSettings, sources } from '../db/schema';
+import { appSettings } from '../db/schema';
 import { DEFAULT_WEIGHTS } from '../classifier/rubric';
 import { loadConfig } from './import';
 import type { FileConfig } from './schema';
@@ -46,10 +46,9 @@ export async function seed(db: Database, configDir: string): Promise<SeedOutcome
   // misconfiguration and should still fail loudly via loadConfig.
   const file: FileConfig | null = existsSync(join(configDir, 'cv.md')) ? loadConfig(configDir) : null;
 
-  // The guard and both inserts are one transaction. Split, a settings insert
-  // that succeeded before a sources insert failed would leave every later run
-  // returning 'already-present' and exiting 0 forever, with an upgrading
-  // user's sources permanently lost behind a healthy-looking stack.
+  // The guard and the insert are one transaction. Split, a settings insert
+  // that landed after a concurrent one would leave every later run returning
+  // 'already-present' and exiting 0 forever, behind a healthy-looking stack.
   return db.transaction(async (tx): Promise<SeedOutcome> => {
     const existing = await tx.select({ id: appSettings.id }).from(appSettings).limit(1);
     if (existing.length > 0) return 'already-present';
@@ -62,17 +61,6 @@ export async function seed(db: Database, configDir: string): Promise<SeedOutcome
       rubricWeights: DEFAULT_WEIGHTS,
       profile: file?.profile ?? DEFAULT_PROFILE,
     });
-
-    if (file) {
-      const rows = [
-        ...file.sources.ats.map((a) => ({ kind: 'ats' as const, board: a.board, slug: a.slug })),
-        ...file.sources.djinni.map((url) => ({ kind: 'djinni' as const, url })),
-        ...file.sources.dou.map((url) => ({ kind: 'dou' as const, url })),
-      ];
-      if (rows.length > 0) {
-        await tx.insert(sources).values(rows).onConflictDoNothing();
-      }
-    }
 
     return file ? 'seeded-from-files' : 'seeded-defaults';
   });
