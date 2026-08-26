@@ -22,7 +22,7 @@ const dim = {
   type: 'object',
   properties: {
     score: { type: 'integer', minimum: 0, maximum: 100 },
-    note: { type: 'string' },
+    note: { type: 'string', minLength: 1 },
   },
   required: ['score', 'note'],
   additionalProperties: false,
@@ -39,7 +39,7 @@ export const VERDICT_JSON_SCHEMA = {
       required: ['coreStack', 'seniority', 'domain', 'logistics', 'growth'],
       additionalProperties: false,
     },
-    summary: { type: 'string' },
+    summary: { type: 'string', minLength: 1 },
   },
   required: ['subscores', 'summary'],
   additionalProperties: false,

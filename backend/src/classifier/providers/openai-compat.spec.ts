@@ -13,6 +13,15 @@ function capture(responseBody: unknown) {
 const ok = { choices: [{ message: { content: '{"a":1}' } }], usage: { prompt_tokens: 7, completion_tokens: 3 } };
 
 describe('openai-compat provider', () => {
+  // A live invariant, not incidental: NotifyConfig.thresholdFor derives
+  // NOTIFY_THRESHOLD_<PROVIDER_ID> from this exact id, so classifier.module's
+  // selectProvider tests (which mock this module) cannot cover it — they
+  // would only be asserting their own mock's hand-built template.
+  it('derives id as openai-compat:<model>', () => {
+    const p = createOpenAiCompatProvider({ baseUrl: 'http://x/v1', model: 'qwen3:14b' });
+    expect(p.id).toBe('openai-compat:qwen3:14b');
+  });
+
   it('posts to /chat/completions with system and user messages', async () => {
     const { seen, fetchFn } = capture(ok);
     const p = createOpenAiCompatProvider({

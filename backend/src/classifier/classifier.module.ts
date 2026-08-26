@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ClassifierService } from './classifier.service';
 import { createAnthropicProvider } from './providers/anthropic';
-import { createOpenAiCompatProvider } from './providers/openai-compat';
+import { createOpenAiCompatProvider, DEFAULT_TIMEOUT_MS } from './providers/openai-compat';
 import { LLM_PROVIDER, type LLMProvider } from './providers/types';
 
 // Re-exported for callers that already import the token from this module.
@@ -14,7 +14,7 @@ export { LLM_PROVIDER };
  */
 export function resolveTimeoutMs(env: NodeJS.ProcessEnv): number {
   const parsed = Number(env.LLM_TIMEOUT_MS);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 120_000;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TIMEOUT_MS;
 }
 
 export function selectProvider(env: NodeJS.ProcessEnv): LLMProvider {

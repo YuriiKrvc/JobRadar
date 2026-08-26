@@ -1,5 +1,14 @@
 import type { CompletionRequest, LLMProvider } from './types';
 
+/**
+ * Shared with `classifier.module.ts`'s `resolveTimeoutMs` so the two never
+ * drift apart. Kept here, and still applied as `opts.timeoutMs ?? DEFAULT_TIMEOUT_MS`
+ * below, because this provider is also constructed directly in tests without
+ * the option — the module's default is a convenience, not this file's only
+ * line of defence.
+ */
+export const DEFAULT_TIMEOUT_MS = 120_000;
+
 export interface OpenAiCompatOptions {
   baseUrl: string;
   model: string;
@@ -52,7 +61,7 @@ export function createOpenAiCompatProvider(opts: OpenAiCompatOptions): LLMProvid
           ...(opts.apiKey ? { authorization: `Bearer ${opts.apiKey}` } : {}),
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(opts.timeoutMs ?? 120_000),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
       });
 
       if (!res.ok) {

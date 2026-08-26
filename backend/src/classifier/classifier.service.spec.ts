@@ -1,7 +1,8 @@
 import { Test } from '@nestjs/testing';
 import { ClassifierService } from './classifier.service';
-import { LLM_PROVIDER, selectProvider } from './classifier.module';
+import { LLM_PROVIDER } from './classifier.module';
 import { FakeProvider } from './providers/fake';
+import type { CompletionRequest, LLMProvider } from './providers/types';
 import type { RawPosting } from '../types';
 import type { AppSettings } from '../settings/schema';
 
@@ -102,19 +103,42 @@ describe('ClassifierService', () => {
     const { svc } = await service([bad, bad]);
     await expect(svc.classify(posting, settings)).rejects.toThrow();
   });
-});
 
-describe('selectProvider', () => {
-  it('defaults to anthropic with claude-haiku-4-5', () => {
-    expect(selectProvider({ ANTHROPIC_API_KEY: 'k' }).id).toBe('anthropic:claude-haiku-4-5');
+  it('does not retry a timeout with a repair prompt', async () => {
+    const timeoutError = new DOMException('signal timed out', 'TimeoutError');
+    let calls = 0;
+    const provider: LLMProvider = {
+      id: 'timeout-fake',
+      async complete(_req: CompletionRequest) {
+        calls += 1;
+        throw timeoutError;
+      },
+    };
+    const moduleRef = await Test.createTestingModule({
+      providers: [ClassifierService, { provide: LLM_PROVIDER, useValue: provider }],
+    }).compile();
+    const svc = moduleRef.get(ClassifierService);
+
+    await expect(svc.classify(posting, settings)).rejects.toBe(timeoutError);
+    expect(calls).toBe(1);
   });
 
-  it('uses the openai-compatible provider when a base url is set', () => {
-    expect(selectProvider({ LLM_BASE_URL: 'http://localhost:11434/v1', LLM_MODEL: 'qwen3:14b' }).id)
-      .toBe('openai-compat:qwen3:14b');
-  });
+  it('does not retry an explicit abort with a repair prompt', async () => {
+    const abortError = new DOMException('aborted', 'AbortError');
+    let calls = 0;
+    const provider: LLMProvider = {
+      id: 'abort-fake',
+      async complete(_req: CompletionRequest) {
+        calls += 1;
+        throw abortError;
+      },
+    };
+    const moduleRef = await Test.createTestingModule({
+      providers: [ClassifierService, { provide: LLM_PROVIDER, useValue: provider }],
+    }).compile();
+    const svc = moduleRef.get(ClassifierService);
 
-  it('throws when neither an api key nor a base url is present', () => {
-    expect(() => selectProvider({})).toThrow(/ANTHROPIC_API_KEY|LLM_BASE_URL/);
+    await expect(svc.classify(posting, settings)).rejects.toBe(abortError);
+    expect(calls).toBe(1);
   });
 });
