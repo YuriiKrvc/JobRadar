@@ -1,5 +1,5 @@
-import * as cheerio from 'cheerio';
 import type { FetchFn, JobSource, RawPosting } from '../types';
+import { htmlToText } from './html';
 
 export interface AtsEntry {
   board: 'greenhouse' | 'lever' | 'ashby';
@@ -11,10 +11,6 @@ const ENDPOINTS: Record<AtsEntry['board'], (slug: string) => string> = {
   lever: (s) => `https://api.lever.co/v0/postings/${s}?mode=json`,
   ashby: (s) => `https://api.ashbyhq.com/posting-api/job-board/${s}`,
 };
-
-export function htmlToText(html: string): string {
-  return cheerio.load(html).root().text().replace(/\s+/g, ' ').trim();
-}
 
 function mapGreenhouse(slug: string, body: any): RawPosting[] {
   return (body.jobs ?? []).map((j: any) => ({

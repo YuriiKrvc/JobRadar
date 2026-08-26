@@ -29,6 +29,12 @@ export interface RawPosting {
 export interface JobSource {
   readonly id: string;
   listPostings(): Promise<RawPosting[]>;
+  /**
+   * Fetch the posting's own page and fill in its description. Optional because
+   * only the selector-driven adapter needs it; the pipeline calls it after the
+   * dedup gate, so each posting costs exactly one detail request, once.
+   */
+  hydrate?(posting: RawPosting): Promise<RawPosting>;
 }
 
 export type FetchFn = (url: string) => Promise<Response>;

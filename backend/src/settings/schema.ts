@@ -35,6 +35,38 @@ export type Profile = z.infer<typeof ProfileSchema>;
  */
 export const ProfileBodySchema = z.object(profileFields).strict();
 
+/**
+ * How to parse one listing page. `item` and `link` are the minimum needed to
+ * produce a posting at all; everything else has a sensible fallback, because a
+ * single-company careers page usually offers nothing but titles.
+ *
+ * Each value is a CSS selector handed to cheerio, so comma-separated
+ * alternates work for free — which is how the deleted djinni adapter expressed
+ * its markup fallbacks.
+ */
+export const SelectorsSchema = z.object({
+  item: z.string().min(1),
+  link: z.string().min(1),
+  title: z.string().min(1).optional(),
+  company: z.string().min(1).optional(),
+  location: z.string().min(1).optional(),
+  employmentType: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  /** Container on the POSTING page holding the description; absent = whole page. */
+  detail: z.string().min(1).optional(),
+}).strict();
+export type Selectors = z.infer<typeof SelectorsSchema>;
+
+/** One enabled source, as the pipeline sees it. */
+export interface SourceSpec {
+  id: string;
+  name: string;
+  url: string;
+  selectors: Selectors;
+  blockedTitleWords: string[];
+  blockedDescriptionWords: string[];
+}
+
 export const SourcesSchema = z.object({
   ats: z.array(z.object({
     board: z.enum(['greenhouse', 'lever', 'ashby']),

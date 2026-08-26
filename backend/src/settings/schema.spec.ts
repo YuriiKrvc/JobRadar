@@ -1,4 +1,4 @@
-import { ProfileSchema, ProfileBodySchema, RubricWeightsSchema, SourceInputSchema } from './schema';
+import { ProfileSchema, ProfileBodySchema, RubricWeightsSchema, SourceInputSchema, SelectorsSchema } from './schema';
 
 describe('ProfileSchema', () => {
   it('defaults the blocked-word lists for a profile written before they existed', () => {
@@ -78,5 +78,20 @@ describe('SourceInputSchema', () => {
 
   it('rejects a url that is not a url', () => {
     expect(() => SourceInputSchema.parse({ kind: 'dou', url: 'not-a-url' })).toThrow();
+  });
+});
+
+describe('SelectorsSchema', () => {
+  it('requires item and link', () => {
+    expect(SelectorsSchema.safeParse({ item: 'li' }).success).toBe(false);
+    expect(SelectorsSchema.safeParse({ item: 'li', link: 'a' }).success).toBe(true);
+  });
+
+  it('rejects empty selector strings', () => {
+    expect(SelectorsSchema.safeParse({ item: '', link: 'a' }).success).toBe(false);
+  });
+
+  it('rejects unknown keys so a typo is not silently ignored', () => {
+    expect(SelectorsSchema.safeParse({ item: 'li', link: 'a', titel: 'h2' }).success).toBe(false);
   });
 });
