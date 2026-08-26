@@ -9,6 +9,8 @@ const PROFILE = {
   allowedEmploymentTypes: ['full-time'],
   minSalaryUsd: 5000,
   timezone: 'Europe/Kyiv',
+  blockedTitleWords: ['intern'],
+  blockedDescriptionWords: [],
 };
 
 beforeEach(() => vi.restoreAllMocks());
@@ -65,6 +67,33 @@ describe('ProfileForm', () => {
 
     await waitFor(() => expect(saveProfile).toHaveBeenCalledWith({
       ...PROFILE, excludedLocations: ['United States', 'Canada'],
+    }));
+  });
+
+  it('renders both blocked-word lists with their help text', () => {
+    render(<ProfileForm initial={PROFILE} onSaved={() => {}} />);
+    expect(screen.getByText('intern')).toBeInTheDocument();
+    expect(screen.getByText(/Checked before the job page is downloaded/)).toBeInTheDocument();
+    expect(screen.getByText(/Checked after the job page is downloaded/)).toBeInTheDocument();
+  });
+
+  it('warns that removing a word does not restore rejected postings', () => {
+    render(<ProfileForm initial={PROFILE} onSaved={() => {}} />);
+    expect(screen.getByText(/does not bring back postings it already rejected/)).toBeInTheDocument();
+  });
+
+  it('saves an added description word', async () => {
+    const saveProfile = vi.spyOn(api, 'saveProfile').mockResolvedValue(4);
+    render(<ProfileForm initial={PROFILE} onSaved={() => {}} />);
+
+    await userEvent.type(
+      screen.getByLabelText('Blocked words — descriptions'),
+      'relocation required{Enter}',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+
+    await waitFor(() => expect(saveProfile).toHaveBeenCalledWith({
+      ...PROFILE, blockedDescriptionWords: ['relocation required'],
     }));
   });
 

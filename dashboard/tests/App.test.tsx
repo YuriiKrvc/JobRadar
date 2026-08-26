@@ -17,6 +17,7 @@ const SETTINGS_STUB = {
   },
   profile: {
     excludedLocations: [], allowedEmploymentTypes: [], minSalaryUsd: null, timezone: 'Europe/Kyiv',
+    blockedTitleWords: [], blockedDescriptionWords: [],
   },
   version: 1, updatedAt: '2026-08-25T10:00:00.000Z',
 };

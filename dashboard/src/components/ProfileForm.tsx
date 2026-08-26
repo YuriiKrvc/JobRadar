@@ -52,6 +52,29 @@ export function ProfileForm({ initial, onSaved }: Props) {
         disabled={save.saving}
       />
 
+      <ChipInput
+        id="blocked-title-words" label="Blocked words — titles"
+        help="Reject a posting outright if its title contains one of these words. Checked before the job page is downloaded, so it also saves a request. Whole words only, case-insensitive — php will not match phpstorm."
+        value={draft.blockedTitleWords}
+        onChange={(v) => set('blockedTitleWords', v)}
+        disabled={save.saving}
+      />
+
+      <ChipInput
+        id="blocked-description-words" label="Blocked words — descriptions"
+        help="Reject a posting if its full description contains one of these words. Checked after the job page is downloaded. Use it for deal-breakers in the body text, like “relocation required”. Whole words and phrases, case-insensitive."
+        value={draft.blockedDescriptionWords}
+        onChange={(v) => set('blockedDescriptionWords', v)}
+        disabled={save.saving}
+      />
+
+      <p className="field-help">
+        Removing a word does not bring back postings it already rejected — those
+        keep their score row and stay filtered. Rejected postings stay listed on
+        the Postings tab with the word that rejected them, so you can see when a
+        list is too aggressive.
+      </p>
+
       <div className="field">
         <label htmlFor="min-salary">Minimum salary (USD)</label>
         <input

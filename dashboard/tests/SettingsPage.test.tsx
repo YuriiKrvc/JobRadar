@@ -17,6 +17,7 @@ const SETTINGS = {
   cv: 'existing cv', rubricBody: 'existing rubric', rubricWeights: WEIGHTS,
   profile: {
     excludedLocations: [], allowedEmploymentTypes: [], minSalaryUsd: null, timezone: 'Europe/Kyiv',
+    blockedTitleWords: [], blockedDescriptionWords: [],
   },
   version: 3, updatedAt: '2026-08-25T10:00:00.000Z',
 };
