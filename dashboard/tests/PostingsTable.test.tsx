@@ -4,24 +4,29 @@ import userEvent from '@testing-library/user-event';
 import { PostingsTable } from '../src/components/PostingsTable';
 import type { PostingRow } from '../src/api/types';
 
+const DIM = { score: 0, note: 'n' };
+const SUBSCORES = {
+  coreStack: DIM, seniority: DIM, domain: DIM, logistics: DIM, growth: DIM,
+};
+
 const rows: PostingRow[] = [
   {
     postingId: 'x:1', title: 'Senior Node Engineer', company: 'Acme',
     url: 'https://e.com/1', source: 'djinni', location: 'Remote',
     total: 82, verdict: 'STRONG', reasoning: 'stack matches',
-    providerId: 'p', scoredAt: '2026-08-25T10:00:00.000Z', settingsVersion: '1',
+    providerId: 'p', scoredAt: '2026-08-25T10:00:00.000Z', settingsVersion: '1', subscores: SUBSCORES,
   },
   {
     postingId: 'x:2', title: 'Mid Node Dev', company: 'Beta',
     url: 'https://e.com/2', source: 'dou', location: null,
     total: 44, verdict: 'NO', reasoning: 'near miss',
-    providerId: 'p', scoredAt: '2026-08-25T09:00:00.000Z', settingsVersion: '1',
+    providerId: 'p', scoredAt: '2026-08-25T09:00:00.000Z', settingsVersion: '1', subscores: SUBSCORES,
   },
   {
     postingId: 'x:3', title: 'Junior Dev', company: 'Gamma',
     url: 'https://e.com/3', source: 'dou', location: 'Kyiv',
     total: 12, verdict: 'NO', reasoning: 'too junior',
-    providerId: 'p', scoredAt: '2026-08-25T08:00:00.000Z', settingsVersion: '1',
+    providerId: 'p', scoredAt: '2026-08-25T08:00:00.000Z', settingsVersion: '1', subscores: SUBSCORES,
   },
 ];
 
@@ -69,7 +74,7 @@ describe('stale settings badge', () => {
     postingId: 'a:1', title: 'T', company: 'C', url: 'https://e.com/1',
     source: 'ats', location: 'Remote', total: 80, verdict: 'STRONG',
     reasoning: 'ok', providerId: 'fake', scoredAt: '2026-08-25T10:00:00.000Z',
-    settingsVersion: '3', ...over,
+    settingsVersion: '3', subscores: SUBSCORES, ...over,
   });
 
   it('badges a score from an older settings version', () => {

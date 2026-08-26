@@ -1,5 +1,18 @@
 export type Verdict = 'STRONG' | 'MAYBE' | 'NO';
 
+export interface Dimension {
+  score: number;
+  note: string;
+}
+
+export interface SubScores {
+  coreStack: Dimension;
+  seniority: Dimension;
+  domain: Dimension;
+  logistics: Dimension;
+  growth: Dimension;
+}
+
 export interface PostingRow {
   postingId: string;
   title: string;
@@ -13,6 +26,7 @@ export interface PostingRow {
   providerId: string;
   scoredAt: string;
   settingsVersion: string;
+  subscores: SubScores;
 }
 
 export interface HealthRow {

@@ -4,11 +4,16 @@ import userEvent from '@testing-library/user-event';
 import { App } from '../src/App';
 import type { HealthRow, PostingRow } from '../src/api/types';
 
+const DIM = { score: 0, note: 'n' };
+const SUBSCORES = {
+  coreStack: DIM, seniority: DIM, domain: DIM, logistics: DIM, growth: DIM,
+};
+
 const posting = {
   postingId: 'x:1', title: 'Senior Node Engineer', company: 'Acme',
   url: 'https://e.com/1', source: 'djinni', location: 'Remote',
   total: 82, verdict: 'STRONG', reasoning: 'r', providerId: 'p',
-  scoredAt: '2026-08-25T10:00:00.000Z', settingsVersion: '1',
+  scoredAt: '2026-08-25T10:00:00.000Z', settingsVersion: '1', subscores: SUBSCORES,
 };
 
 const SETTINGS_STUB = {

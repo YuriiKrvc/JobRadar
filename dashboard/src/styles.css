@@ -1,5 +1,6 @@
-:root { color-scheme: light dark; }
-body { font: 14px/1.5 system-ui, sans-serif; margin: 2rem; max-width: 1100px; }
+/* Legacy global sheet, retired in stages. `:root` and `body` now live in
+   styles/tokens.css; what remains here are the Settings component rules,
+   which move into per-component CSS Modules. */
 h1 { font-size: 1.4rem; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border-bottom: 1px solid #ddd; padding: .4rem .6rem; text-align: left; vertical-align: top; }
