@@ -130,7 +130,7 @@ export class PipelineService {
         if (source.hydrate) {
           try {
             posting = await source.hydrate(listed);
-            await this.repo.upsert(posting);
+            await this.repo.saveHydrated(posting);
           } catch (err) {
             s.sourceErrors += 1;
             const msg = err instanceof Error ? err.message : String(err);

@@ -29,34 +29,34 @@ export class PostingsRepository {
         location: p.location, employmentType: p.employmentType,
         description: p.description, raw: p.raw as object,
       })
-      .onConflictDoUpdate({
-        target: postings.id,
-        set: {
-          lastSeen: new Date(),
-          // Refresh the content, not just the timestamp. The pipeline upserts a
-          // posting twice on purpose — once from the listing page, then again
-          // after hydrate has fetched its detail page — and a last_seen-only
-          // clause silently threw the fetched description away, leaving the row
-          // holding a snippet while the classifier scored the full text.
-          // Re-listing also heals a title or location the board corrected.
-          //
-          // `source` is deliberately absent: it is a snapshot of the source's
-          // name at fetch time, and renaming a source is documented as leaving
-          // older postings under the old name.
-          url: p.url,
-          title: p.title,
-          company: p.company,
-          location: p.location,
-          employmentType: p.employmentType,
-          description: p.description,
-          raw: p.raw as object,
-        },
-      })
+      // Deliberately does NOT refresh content on conflict. The pipeline calls
+      // this on every tick for every listed posting, including ones already
+      // scored from a hydrated detail page — refreshing content here would
+      // overwrite that full description with the listing snippet, or with ''
+      // for a source with no listing description selector. Only last_seen
+      // should move; the real content write is `saveHydrated` below.
+      .onConflictDoUpdate({ target: postings.id, set: { lastSeen: new Date() } })
       .returning({ firstSeen: postings.firstSeen, lastSeen: postings.lastSeen });
 
     const row = rows[0];
     if (!row) throw new Error(`upsert returned no row for ${p.id}`);
     return { isNew: row.firstSeen.getTime() === row.lastSeen.getTime() };
+  }
+
+  /**
+   * Persist a posting whose detail page has just been fetched. Separate from
+   * upsert because only this path carries content worth overwriting the row
+   * with — upsert runs on every tick and would clobber it with the listing
+   * snippet. `source` stays untouched here for the same reason it does there:
+   * it is a snapshot of the source's name at fetch time.
+   */
+  async saveHydrated(p: RawPosting): Promise<void> {
+    await this.db.update(postings).set({
+      url: p.url, title: p.title, company: p.company,
+      location: p.location, employmentType: p.employmentType,
+      description: p.description, raw: p.raw as object,
+      lastSeen: new Date(),
+    }).where(eq(postings.id, p.id));
   }
 
   /**

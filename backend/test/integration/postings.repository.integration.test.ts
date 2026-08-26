@@ -85,34 +85,63 @@ describe.skipIf(!url)('PostingsRepository', () => {
     expect((await repo.pendingNotifications(50, 'telegram')).map((p) => p.scoreId)).not.toContain(id);
   });
 
-  it('refreshes a posting\'s content on re-upsert, not just last_seen', async () => {
-    // This is what the pipeline's post-hydrate upsert depends on: the listing
-    // pass stores a snippet, then hydrate re-upserts the same id with the
-    // description fetched from the posting's own page.
-    const listed = posting({
+  it('does not overwrite a hydrated description when the posting is re-listed', async () => {
+    // The regression guard for the round-1 finding: upsert runs on every tick
+    // for every posting still on the listing page, including ones already
+    // scored from a hydrated detail page. If upsert's conflict clause ever
+    // refreshes content again, a source whose listing page has no description
+    // selector (description: '') will silently blank out the stored 7-9k
+    // hydrated body on the very next tick.
+    const hydratedRow = posting({
       id: 'refresh:1',
-      description: 'short listing snippet',
-      title: 'Node Developer',
-      location: 'Remote',
-    });
-    const first = await repo.upsert(listed);
-    expect(first.isNew).toBe(true);
-
-    const hydrated = {
-      ...listed,
       description: 'the full job description fetched from the posting page',
       title: 'Senior Node Developer',
       location: 'Remote, EU',
       employmentType: 'full-time',
-    };
-    const second = await repo.upsert(hydrated);
+    });
+    const first = await repo.upsert(hydratedRow);
+    expect(first.isNew).toBe(true);
+
+    // Simulate the next tick re-listing the same posting with only a snippet
+    // (or '', for a source with no description selector).
+    const relisted = { ...hydratedRow, description: '', title: 'Node Developer', location: 'Remote' };
+    const second = await repo.upsert(relisted);
     expect(second.isNew).toBe(false);
 
     const [row] = await db.select().from(postings).where(eq(postings.id, 'refresh:1'));
     expect(row!.description).toBe('the full job description fetched from the posting page');
     expect(row!.title).toBe('Senior Node Developer');
     expect(row!.location).toBe('Remote, EU');
-    expect(row!.employmentType).toBe('full-time');
+  });
+
+  it('saveHydrated rewrites content but leaves first_seen and source untouched', async () => {
+    const listed = posting({
+      id: 'refresh:3',
+      source: 'Acme',
+      description: 'short listing snippet',
+      title: 'Node Developer',
+      location: 'Remote',
+    });
+    await repo.upsert(listed);
+    const [before] = await db.select().from(postings).where(eq(postings.id, 'refresh:3'));
+
+    await repo.saveHydrated({
+      ...listed,
+      source: 'Acme Renamed', // must be ignored, same as upsert
+      description: 'the full job description fetched from the posting page',
+      title: 'Senior Node Developer',
+      location: 'Remote, EU',
+      employmentType: 'full-time',
+    });
+    const [after] = await db.select().from(postings).where(eq(postings.id, 'refresh:3'));
+
+    expect(after!.description).toBe('the full job description fetched from the posting page');
+    expect(after!.title).toBe('Senior Node Developer');
+    expect(after!.location).toBe('Remote, EU');
+    expect(after!.employmentType).toBe('full-time');
+    expect(after!.firstSeen.getTime()).toBe(before!.firstSeen.getTime());
+    expect(after!.source).toBe('Acme');
+    expect(after!.lastSeen.getTime()).toBeGreaterThanOrEqual(before!.lastSeen.getTime());
   });
 
   it('keeps first_seen and the original source when a posting is re-upserted', async () => {

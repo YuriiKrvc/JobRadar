@@ -45,6 +45,7 @@ function fakeRepo() {
     upsert: jest.fn(async (p: RawPosting) => {
       const isNew = !seen.has(p.id); seen.add(p.id); return { isNew };
     }),
+    saveHydrated: jest.fn(async () => {}),
     hasScore: jest.fn(async (id: string) => withScore.has(id)),
     insertScore: jest.fn(async function (this: any, postingId: string, v: any) {
       withScore.add(postingId);
@@ -340,8 +341,11 @@ describe('blocklists and hydration', () => {
     await service.run();
 
     expect(hydrate).toHaveBeenCalledTimes(1);
-    expect(repo.upsert).toHaveBeenCalledTimes(2);
-    expect(repo.upsert).toHaveBeenLastCalledWith(
+    // upsert is still the pre-gate write from the listing pass — it must
+    // still be called, but the content write is saveHydrated's job now.
+    expect(repo.upsert).toHaveBeenCalledTimes(1);
+    expect(repo.saveHydrated).toHaveBeenCalledTimes(1);
+    expect(repo.saveHydrated).toHaveBeenCalledWith(
       expect.objectContaining({ description: 'node postgres deep dive' }),
     );
     expect(classify.mock.calls[0]![0].description).toBe('node postgres deep dive');
@@ -357,6 +361,7 @@ describe('blocklists and hydration', () => {
     const s = await service.run();
 
     expect(hydrate).not.toHaveBeenCalled();
+    expect(repo.saveHydrated).not.toHaveBeenCalled();
     expect(s.skippedDuplicate).toBe(1);
   });
 
