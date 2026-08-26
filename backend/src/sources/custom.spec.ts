@@ -137,6 +137,12 @@ describe('externalIdFrom', () => {
   it('is case-insensitive about parameter names', () => {
     expect(externalIdFrom('https://acme.com/careers/12?UTM_Source=x&From=y')).toBe('/careers/12');
   });
+
+  it('does not strip a parameter whose name merely contains a tracking word', () => {
+    // Anchoring guard: unanchored, this would lose all three.
+    expect(externalIdFrom('https://acme.com/job?fromage=1&my_source=2&resourceId=3'))
+      .toBe('/job?fromage=1&my_source=2&resourceId=3');
+  });
 });
 
 describe('createCustomSource.hydrate', () => {

@@ -137,7 +137,12 @@ the item selector without being postings.
 
 Posting ids are `src:<source uuid>:<externalId>`, where `externalId` is the
 posting URL's pathname with any trailing slash removed, plus its query string
-minus referrer parameters (`from`, `ref`, `utm_*`, and the like). The query
+minus unambiguous referrer/ad-click parameters (`from`, `utm_*`, `gclid`, and
+the like — deliberately not `ref` or `source`, which can be the parameter that
+identifies a posting on an arbitrary careers page; stripping those risks
+merging two distinct postings onto one id, which silently drops the second
+one from scoring, a worse failure than the duplicate classification a missed
+tracking parameter costs). The query
 string is not optional: a board that addresses postings as `/job?id=42` would
 otherwise collapse all of them onto one id and exactly one would ever be
 scored. But it cannot survive unfiltered either — DOU's listing links carry

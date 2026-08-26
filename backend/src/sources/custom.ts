@@ -11,9 +11,14 @@ function clean(text: string): string {
  * Parameters that record how a visitor arrived rather than which posting they
  * arrived at. DOU's listing links carry `from=list_hot`, so the same vacancy
  * reached from two listing blocks would otherwise produce two posting ids and
- * be classified twice — the dedup gate is keyed on the id.
+ * be classified twice — the dedup gate is keyed on the id. Deliberately
+ * conservative: a parameter that might identify a posting (e.g. `ref`,
+ * `source`) is left alone, because stripping it would risk merging two
+ * distinct postings onto one id, and a false merge loses a posting silently —
+ * it never gets scored — while a false split (this list erring short) only
+ * wastes a duplicate classification.
  */
-const TRACKING_PARAM = /^(?:from|ref|referrer|source|fbclid|gclid|msclkid|mc_cid|mc_eid|utm_[a-z_]*)$/i;
+const TRACKING_PARAM = /^(?:from|referrer|fbclid|gclid|msclkid|mc_cid|mc_eid|utm_[a-z_]*)$/i;
 
 /**
  * A stable per-source identifier for a posting. The pathname alone is not
