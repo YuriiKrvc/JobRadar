@@ -137,13 +137,17 @@ describe('RubricEditor', () => {
     );
   });
 
-  it('never calls saveRubric when Save is clicked with all weights zeroed out', async () => {
-    // Editing every weight down to 0 makes the section dirty, so
-    // SettingsSection — which knows nothing about all-zero weights — enables
-    // Save. The only thing stopping that click from reaching the backend is
-    // the `if (allZero) return;` guard inside onSave. Seed with non-zero
-    // weights so the edit itself is what makes the section dirty, rather
-    // than starting from an already-all-zero (and thus non-dirty) state.
+  it('disables Save with its reason printed beside it when all weights are zeroed out, and never calls saveRubric', async () => {
+    // Editing every weight down to 0 makes the section dirty. Previously
+    // SettingsSection — which knows nothing about all-zero weights — enabled
+    // Save regardless, and only an `if (allZero) return;` guard inside onSave
+    // stopped the click from reaching the backend: an enabled button that
+    // silently does nothing, which the spec's "disabled state, never silent"
+    // contract forbids. RubricEditor now passes SettingsSection a
+    // disabledReason, so the button itself is disabled and the reason is
+    // printed beside it. Seed with non-zero weights so the edit itself is
+    // what makes the section dirty, rather than starting from an
+    // already-all-zero (and thus non-dirty) state.
     const save = vi.spyOn(api, 'saveRubric').mockResolvedValue(4);
     setup();
 
@@ -154,13 +158,18 @@ describe('RubricEditor', () => {
     }
 
     const saveButton = screen.getByRole('button', { name: /^Save/ });
-    // Prove the click actually lands on a live button — a disabled button
-    // would make the "never called" assertion below pass for the wrong
-    // reason.
-    expect(saveButton).toBeEnabled();
+    expect(saveButton).toBeDisabled();
+    // The same sentence also appears in the rubric-weights column's own
+    // role="alert" (a separate contract, per spec), so there are two matches
+    // here — assert the reason beside the button specifically.
+    const reasons = screen.getAllByText(
+      'All weights are zero — the rubric would score nothing. Set at least one above zero.',
+    );
+    expect(reasons.some((el) => el.className === 'settings-section-note')).toBe(true);
 
+    // Disabled buttons don't fire click handlers, but assert the outcome
+    // directly rather than relying on that alone.
     await userEvent.click(saveButton);
-
     expect(save).not.toHaveBeenCalled();
   });
 });

@@ -21,11 +21,23 @@ interface Props {
   onSave?: () => void;
   /** Only for a section without onSave: why it has no Save button. */
   note?: string;
+  /**
+   * When present, Save is disabled regardless of dirty/saving and this
+   * reason prints beside the button — the spec's "disabled state, never
+   * silent": a disabled button must never appear with no explanation.
+   * Distinct from `note`, which sits above the rule for a section with no
+   * Save button at all (Sources); this sits beside a Save button that
+   * exists but currently cannot be clicked.
+   */
+  disabledReason?: string | null;
   children: ReactNode;
 }
 
-export function SettingsSection({ id, title, blurb, version, state, onSave, note, children }: Props) {
+export function SettingsSection({
+  id, title, blurb, version, state, onSave, note, disabledReason, children,
+}: Props) {
   const { dirty, saving, saved, error } = state;
+  const blocked = Boolean(disabledReason);
 
   return (
     <section className="settings-section" aria-labelledby={`${id}-title`}>
@@ -43,7 +55,7 @@ export function SettingsSection({ id, title, blurb, version, state, onSave, note
           <button
             type="button"
             className="btn btn-primary"
-            disabled={!dirty || saving}
+            disabled={!dirty || saving || blocked}
             onClick={onSave}
           >
             {saving ? 'Saving…' : dirty ? 'Save' : 'Saved'}
@@ -52,6 +64,9 @@ export function SettingsSection({ id, title, blurb, version, state, onSave, note
       </div>
 
       {note && <p className="settings-section-note">{note}</p>}
+      {/* Never a disabled button with no explanation — same idiom as
+          SourceForm's gated submit ("Still needed: …"). */}
+      {blocked && <p className="settings-section-note">{disabledReason}</p>}
 
       <div className="settings-section-rule" />
 

@@ -49,9 +49,14 @@ export function RubricEditor({ initialBody, initialWeights, version, onSaved }: 
       id="rubric" title="Rubric & weights" blurb="How the model is told to judge."
       version={version}
       state={{ dirty, saving: save.saving, saved: save.saved, error: save.error }}
+      disabledReason={allZero
+        ? 'All weights are zero — the rubric would score nothing. Set at least one above zero.'
+        : null}
       onSave={async () => {
         // RubricWeightsSchema refuses all-zero weights — dividing by zero would
-        // store NaN as a total. Stop here rather than spending a round trip.
+        // store NaN as a total. The disabled Save button already stops a click
+        // from reaching here; this guard is defense in depth, not the primary
+        // gate — see SettingsSection's disabledReason.
         if (allZero) return;
         if (await save.run({ body, weights })) onSaved();
       }}

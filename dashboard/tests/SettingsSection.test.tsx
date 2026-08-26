@@ -66,6 +66,17 @@ it('calls onSave when the button is pressed', async () => {
   expect(onSave).toHaveBeenCalledOnce();
 });
 
+it('disabledReason disables Save even when dirty, and prints beside the button', () => {
+  renderSection({
+    state: { ...CLEAN, dirty: true },
+    disabledReason: 'All weights are zero — the rubric would score nothing. Set at least one above zero.',
+  });
+  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  expect(screen.getByText(
+    'All weights are zero — the rubric would score nothing. Set at least one above zero.',
+  )).toBeInTheDocument();
+});
+
 it('without onSave there is no chip and no button, and the note explains why', () => {
   renderSection({
     onSave: undefined,
