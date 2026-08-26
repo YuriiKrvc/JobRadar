@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SettingsPage } from '../src/components/SettingsPage';
 import { useApi } from '../src/hooks/useApi';
@@ -29,6 +29,23 @@ beforeEach(() => {
 });
 
 describe('SettingsPage CV section', () => {
+  it('carries the section blurb and a live character and word count', async () => {
+    render(<Harness />);
+    const cv = within(await screen.findByRole('region', { name: 'CV' }));
+    expect(cv.getByText('The text every posting is scored against.')).toBeInTheDocument();
+    // 'existing cv' — 11 characters, 2 words.
+    expect(cv.getByText('11 characters · 2 words')).toBeInTheDocument();
+
+    await userEvent.type(cv.getByLabelText(/^cv/i), '!');
+    expect(cv.getByText('12 characters · 2 words')).toBeInTheDocument();
+  });
+
+  it('turns off spellcheck: a CV is not prose the browser should second-guess', async () => {
+    render(<Harness />);
+    await screen.findByDisplayValue('existing cv');
+    expect(within(screen.getByRole('region', { name: 'CV' })).getByLabelText(/^cv/i)).toHaveAttribute('spellcheck', 'false');
+  });
+
   it('loads the current cv into the textarea', async () => {
     render(<Harness />);
     expect(await screen.findByDisplayValue('existing cv')).toBeInTheDocument();
@@ -38,10 +55,10 @@ describe('SettingsPage CV section', () => {
     render(<Harness />);
     await screen.findByDisplayValue('existing cv');
 
-    const save = screen.getByRole('button', { name: /save cv/i });
+    const save = within(screen.getByRole('region', { name: 'CV' })).getByRole('button', { name: /^Save/ });
     expect(save).toBeDisabled();
 
-    await userEvent.type(screen.getByLabelText(/^cv$/i), '!');
+    await userEvent.type(within(screen.getByRole('region', { name: 'CV' })).getByLabelText(/^cv/i), '!');
     expect(save).toBeEnabled();
   });
 
@@ -50,8 +67,8 @@ describe('SettingsPage CV section', () => {
     render(<Harness />);
     await screen.findByDisplayValue('existing cv');
 
-    await userEvent.type(screen.getByLabelText(/^cv$/i), ' more');
-    await userEvent.click(screen.getByRole('button', { name: /save cv/i }));
+    await userEvent.type(within(screen.getByRole('region', { name: 'CV' })).getByLabelText(/^cv/i), ' more');
+    await userEvent.click(within(screen.getByRole('region', { name: 'CV' })).getByRole('button', { name: /^Save/ }));
 
     await waitFor(() => expect(saveCv).toHaveBeenCalledWith('existing cv more'));
   });
@@ -62,11 +79,11 @@ describe('SettingsPage CV section', () => {
     render(<Harness />);
     await screen.findByDisplayValue('existing cv');
 
-    await userEvent.type(screen.getByLabelText(/^cv$/i), ' x');
-    await userEvent.click(screen.getByRole('button', { name: /save cv/i }));
+    await userEvent.type(within(screen.getByRole('region', { name: 'CV' })).getByLabelText(/^cv/i), ' x');
+    await userEvent.click(within(screen.getByRole('region', { name: 'CV' })).getByRole('button', { name: /^Save/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('cv: Required');
-    expect(screen.getByLabelText(/^cv$/i)).toHaveValue('existing cv x');
+    expect(within(screen.getByRole('region', { name: 'CV' })).getByLabelText(/^cv/i)).toHaveValue('existing cv x');
 
     // A failed save must not trigger a refetch: reloading on failure is exactly
     // the path that could silently overwrite the user's rejected, unsaved edit.
@@ -86,12 +103,12 @@ describe('SettingsPage CV section', () => {
     render(<Harness />);
     await screen.findByDisplayValue('existing cv');
 
-    await userEvent.type(screen.getByLabelText(/^cv$/i), ' more');
-    await userEvent.click(screen.getByRole('button', { name: /save cv/i }));
+    await userEvent.type(within(screen.getByRole('region', { name: 'CV' })).getByLabelText(/^cv/i), ' more');
+    await userEvent.click(within(screen.getByRole('region', { name: 'CV' })).getByRole('button', { name: /^Save/ }));
 
     // While the save is in flight, the textarea must be locked so further
     // keystrokes cannot be silently clobbered by the post-save reload.
-    expect(screen.getByLabelText(/^cv$/i)).toBeDisabled();
+    expect(within(screen.getByRole('region', { name: 'CV' })).getByLabelText(/^cv/i)).toBeDisabled();
 
     resolveSave(4);
 
@@ -130,8 +147,8 @@ describe('unsaved edits across sections', () => {
     expect(screen.getByLabelText(/minimum salary/i)).toHaveValue(7000);
 
     // Save a different section.
-    await userEvent.type(screen.getByLabelText(/^cv$/i), ' more');
-    await userEvent.click(screen.getByRole('button', { name: /save cv/i }));
+    await userEvent.type(within(screen.getByRole('region', { name: 'CV' })).getByLabelText(/^cv/i), ' more');
+    await userEvent.click(within(screen.getByRole('region', { name: 'CV' })).getByRole('button', { name: /^Save/ }));
     await waitFor(() => expect(api.fetchSettings).toHaveBeenCalledTimes(2));
 
     // The reload must not have reset Profile.
@@ -148,8 +165,8 @@ describe('unsaved edits across sections', () => {
     await userEvent.clear(growth);
     await userEvent.type(growth, '99');
 
-    await userEvent.type(screen.getByLabelText(/^cv$/i), ' more');
-    await userEvent.click(screen.getByRole('button', { name: /save cv/i }));
+    await userEvent.type(within(screen.getByRole('region', { name: 'CV' })).getByLabelText(/^cv/i), ' more');
+    await userEvent.click(within(screen.getByRole('region', { name: 'CV' })).getByRole('button', { name: /^Save/ }));
     await waitFor(() => expect(api.fetchSettings).toHaveBeenCalledTimes(2));
 
     expect(screen.getByLabelText('growth')).toHaveValue(99);
@@ -165,8 +182,8 @@ describe('unsaved edits across sections', () => {
     render(<Harness />);
     await screen.findByDisplayValue('existing cv');
 
-    await userEvent.type(screen.getByLabelText(/^cv$/i), ' more');
-    await userEvent.click(screen.getByRole('button', { name: /save cv/i }));
+    await userEvent.type(within(screen.getByRole('region', { name: 'CV' })).getByLabelText(/^cv/i), ' more');
+    await userEvent.click(within(screen.getByRole('region', { name: 'CV' })).getByRole('button', { name: /^Save/ }));
 
     // The refetch is still in flight: the form must still be on screen rather
     // than replaced by a "Loading…" placeholder.
