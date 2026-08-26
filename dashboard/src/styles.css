@@ -145,6 +145,7 @@ textarea.input { min-height: 90px; resize: vertical; }
    The Postings page has its own design doc and its own pass to come. These
    re-express what is there today in tokens, so the page keeps working and
    stops clashing with the new palette. */
+.sortable { cursor: pointer; user-select: none; }
 .total { font-weight: 700; }
 .row-STRONG { background: var(--color-accent-100); }
 .row-MAYBE { background: color-mix(in srgb, var(--color-text) 4%, transparent); }

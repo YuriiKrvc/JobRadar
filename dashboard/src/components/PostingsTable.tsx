@@ -24,10 +24,14 @@ export function PostingsTable({ rows, currentVersion }: Props) {
   }
 
   return (
-    <table>
+    <table className="table">
       <thead>
         <tr>
-          <th onClick={() => setDescending((d) => !d)} aria-sort={descending ? 'descending' : 'ascending'}>
+          <th
+            className="sortable"
+            onClick={() => setDescending((d) => !d)}
+            aria-sort={descending ? 'descending' : 'ascending'}
+          >
             Score {descending ? '▼' : '▲'}
           </th>
           <th>Verdict</th>
