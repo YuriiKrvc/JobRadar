@@ -162,7 +162,7 @@ describe('unsaved edits across sections', () => {
     render(<Harness />);
     await screen.findByDisplayValue('existing cv');
 
-    const growth = screen.getByLabelText('growth');
+    const growth = screen.getByLabelText('Growth');
     await userEvent.clear(growth);
     await userEvent.type(growth, '99');
 
@@ -170,7 +170,7 @@ describe('unsaved edits across sections', () => {
     await userEvent.click(within(screen.getByRole('region', { name: 'CV' })).getByRole('button', { name: /^Save/ }));
     await waitFor(() => expect(api.fetchSettings).toHaveBeenCalledTimes(2));
 
-    expect(screen.getByLabelText('growth')).toHaveValue(99);
+    expect(screen.getByLabelText('Growth')).toHaveValue(99);
   });
 
   it('never unmounts the sections during a reload', async () => {

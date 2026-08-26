@@ -51,6 +51,7 @@ export function SettingsPage({ settings }: Props) {
       <RubricEditor
         initialBody={s.rubricBody}
         initialWeights={s.rubricWeights}
+        version={s.version}
         onSaved={settings.reload}
       />
     </div>

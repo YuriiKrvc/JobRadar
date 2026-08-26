@@ -224,3 +224,17 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .one-way-door p { margin: 0; font-size: 14px; line-height: 1.55; max-width: 66ch; text-wrap: pretty; color: var(--color-accent-2-900); }
 .field-help { margin: 0 0 9px; font-size: 12.5px; line-height: 1.5; max-width: 52ch; text-wrap: pretty; color: color-mix(in srgb, var(--color-text) 65%, transparent); }
+
+/* ── Rubric ───────────────────────────────────────────────────────────── */
+.rubric-grid { display: flex; gap: 30px; flex-wrap: wrap; }
+.rubric-body { flex: 1; min-width: 320px; }
+.rubric-area { min-height: 210px; font-size: 14px; line-height: 1.6; padding: 14px 16px; font-family: var(--font-body); }
+.rubric-weights { width: 320px; flex: none; }
+.rubric-weights-head { margin: 0 0 11px; font-size: 12px; color: color-mix(in srgb, var(--color-text) 70%, transparent); }
+.rubric-weight { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; }
+.rubric-weight > label { width: 82px; flex: none; font-size: 13px; margin: 0; color: var(--color-text); }
+.rubric-weight > .input { width: 56px; min-height: 30px; padding: 3px 7px; font-size: 13px; text-align: right; }
+.rubric-bar { flex: 1; min-width: 44px; height: 8px; background: color-mix(in srgb, var(--color-text) 10%, transparent); }
+.rubric-bar > div { height: 8px; background: var(--color-accent); }
+.rubric-share { width: 44px; flex: none; text-align: right; font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 13px; }
+.rubric-zero { margin-top: 9px; font-size: 12.5px; color: var(--color-accent-2-800); }
