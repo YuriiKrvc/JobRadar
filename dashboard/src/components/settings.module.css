@@ -1,0 +1,67 @@
+/* The Settings surface's shared vocabulary. One scoped module imported by the
+   six components that make up the page, rather than six near-identical ones:
+   `section`, `actions`, `field` and `state` are the same thing in each, and
+   duplicating them would be the global stylesheet again under a new name.
+   Component-specific rules live further down, grouped by their owner.
+
+   Layout is deliberately unchanged from the pre-Broadsheet sheet — page 2 of
+   the design doc redesigns this surface, and that is a separate task. Only the
+   hard-coded colours are swapped for tokens. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 60rem;
+  padding: 22px 34px 60px;
+}
+
+.version { color: var(--ink-70); font-size: 0.9rem; }
+
+.section { display: flex; flex-direction: column; gap: 0.4rem; }
+.section label { font-weight: 600; }
+.section textarea { width: 100%; font-family: inherit; }
+
+.actions { display: flex; gap: 0.75rem; align-items: center; }
+
+.field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.75rem; }
+
+.state { padding: 2rem 0; color: var(--ink-55); }
+
+/* ChipInput */
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; list-style: none; padding: 0; margin: 0; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+}
+
+.chip button { border: none; background: none; cursor: pointer; font-size: 1rem; padding: 0; }
+
+/* SourcesTable */
+.table { border-collapse: collapse; width: 100%; }
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--color-neutral-300);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.rowDisabled { opacity: 0.5; }
+.addSource { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+
+/* RubricEditor */
+.weights { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.5rem; }
+.weight { min-width: 8rem; }
+.weight input { width: 5rem; }
+.pct { color: var(--ink-70); font-size: 0.85rem; }
+
+@media (max-width: 820px) {
+  .page { padding: 16px 18px 40px; }
+}

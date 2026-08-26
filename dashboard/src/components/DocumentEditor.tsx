@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSave } from '../hooks/useSave';
+import s from './settings.module.css';
 
 interface Props {
   id: string;
@@ -19,7 +20,7 @@ export function DocumentEditor({ id, label, initial, rows = 14, onSave, onSaved 
   const dirty = value !== initial;
 
   return (
-    <section className="settings-section">
+    <section className={s.section}>
       <label htmlFor={id}>{label}</label>
       <textarea
         id={id}
@@ -28,7 +29,7 @@ export function DocumentEditor({ id, label, initial, rows = 14, onSave, onSaved 
         disabled={save.saving}
         onChange={(e) => setValue(e.target.value)}
       />
-      <div className="settings-actions">
+      <div className={s.actions}>
         <button
           type="button"
           disabled={!dirty || save.saving}
@@ -42,8 +43,8 @@ export function DocumentEditor({ id, label, initial, rows = 14, onSave, onSaved 
         >
           {save.saving ? 'Saving…' : `Save ${label}`}
         </button>
-        {save.error && <span className="state" role="alert">{save.error}</span>}
-        {save.saved && !dirty && <span className="state">Saved</span>}
+        {save.error && <span className={s.state} role="alert">{save.error}</span>}
+        {save.saved && !dirty && <span className={s.state}>Saved</span>}
       </div>
     </section>
   );

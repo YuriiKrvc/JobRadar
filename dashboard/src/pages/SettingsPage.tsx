@@ -4,6 +4,7 @@ import { DocumentEditor } from '../components/DocumentEditor';
 import { ProfileForm } from '../components/ProfileForm';
 import { RubricEditor } from '../components/RubricEditor';
 import { SourcesTable } from '../components/SourcesTable';
+import css from '../components/settings.module.css';
 
 export function SettingsPage() {
   /**
@@ -13,19 +14,19 @@ export function SettingsPage() {
    */
   const { settings } = useDashboardData();
 
-  if (settings.error) return <p className="state" role="alert">Error: {settings.error}</p>;
+  if (settings.error) return <p className={css.state} role="alert">Error: {settings.error}</p>;
 
   // Gate on `data`, not on `loading`. Every section's onSaved calls reload(),
   // which sets loading = true; gating on it would unmount all four sections
   // mid-edit and remount them from the server, silently discarding whatever
   // the user had typed into the three they did not save.
-  if (!settings.data) return <p className="state">Loading…</p>;
+  if (!settings.data) return <p className={css.state}>Loading…</p>;
 
   const s = settings.data;
 
   return (
-    <div className="settings">
-      <p className="settings-version">
+    <div className={css.page}>
+      <p className={css.version}>
         Scoring settings version {s.version} — changes apply on the next run.
       </p>
 
