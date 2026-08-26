@@ -26,7 +26,13 @@ const SELECTOR_FIELDS: { key: keyof Selectors; label: string; help: string }[] =
   { key: 'location', label: 'Location', help: 'Optional. Feeds the excluded-locations filter.' },
   { key: 'employmentType', label: 'Employment type', help: 'Optional. Feeds the allowed-employment-types filter.' },
   { key: 'description', label: 'Snippet on the listing page', help: 'Optional. A short summary if the board shows one.' },
-  { key: 'detail', label: 'Description container (posting page)', help: 'Optional. Leave empty to use the whole posting page as the description.' },
+  {
+    key: 'detail', label: 'Description container (posting page)',
+    help: 'Strongly recommended. Left empty, the whole posting page becomes the '
+      + 'description — navigation, footers and any salary widget included. A '
+      + 'board\'s own salary filter can then trip the minimum-salary rule and get '
+      + 'good postings rejected.',
+  },
 ];
 
 export function SourceForm({ initial, submitLabel, saving, error, onSubmit, onCancel }: Props) {
