@@ -84,9 +84,12 @@ export function SourceForm({ initial, formTitle, submitLabel, saving, error, onS
   // The backend distinguishes the two unique constraints by constraint_name and
   // says which one collided; map that sentence back onto the field so the
   // failure is marked where it happened, not only at the top of the form.
+  // Anchored on the controller's exact sentences (sources.controller.ts), not
+  // a bare /name/ or /url/ match — those would also fire on any unrelated
+  // error whose text happens to contain the word.
   const collided = error === null ? null
-    : /\bname\b/i.test(error) ? 'name'
-    : /\burl\b/i.test(error) ? 'url'
+    : error.includes('Another source already uses that name') ? 'name'
+    : error.includes('Another source already uses that URL') ? 'url'
     : null;
 
   const missing = REQUIRED.filter((f) => valueOf(f).trim() === '').map((f) => f.label);
@@ -167,7 +170,11 @@ export function SourceForm({ initial, formTitle, submitLabel, saving, error, onS
         </div>
       )}
 
-      {error && <div role="alert" className="source-form-error">{error}</div>}
+      {error && (
+        <div role="alert" className="source-form-error">
+          {error} Nothing was saved and your values are still here — try again.
+        </div>
+      )}
 
       <div className="source-form-actions">
         <button type="button" className="btn btn-primary" disabled={missing.length > 0 || saving} onClick={submit}>

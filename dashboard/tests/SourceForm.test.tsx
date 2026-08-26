@@ -122,6 +122,17 @@ it('names what is still missing beside the disabled submit', async () => {
   expect(screen.getByRole('button', { name: 'Add source' })).toBeEnabled();
 });
 
+it('marks the four required inputs aria-required, and the optional ones not', async () => {
+  render(<SourceForm formTitle="New source" submitLabel="Add source" saving={false} error={null} onSubmit={() => {}} />);
+
+  for (const label of ['Name', 'Listing URL', 'Item', 'Link']) {
+    expect(screen.getByLabelText(label)).toHaveAttribute('aria-required', 'true');
+  }
+
+  await userEvent.click(screen.getByRole('button', { name: /Six optional selectors/ }));
+  expect(screen.getByLabelText('Description container')).not.toHaveAttribute('aria-required', 'true');
+});
+
 it('marks the colliding field when the server reports a duplicate name', () => {
   render(<SourceForm initial={EXISTING} formTitle="Editing Acme" submitLabel="Save this source"
     saving={false} error="Another source already uses that name" onSubmit={() => {}} />);
@@ -138,6 +149,21 @@ it('marks the URL field when the server reports a duplicate listing URL', () => 
     saving={false} error="Another source already uses that URL" onSubmit={() => {}} />);
   expect(screen.getByLabelText('Listing URL')).toHaveAttribute('aria-invalid', 'true');
   expect(screen.getByLabelText('Name')).not.toHaveAttribute('aria-invalid', 'true');
+});
+
+it('reassures the user that nothing was saved and their values are still there', () => {
+  render(<SourceForm initial={EXISTING} formTitle="Editing Acme" submitLabel="Save this source"
+    saving={false} error="Another source already uses that name" onSubmit={() => {}} />);
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    /Nothing was saved.*your values are still here/i,
+  );
+});
+
+it('does not mark any field invalid for an unrelated error mentioning "url"', () => {
+  render(<SourceForm initial={EXISTING} formTitle="Editing Acme" submitLabel="Save this source"
+    saving={false} error="Failed to fetch: check your url and try again" onSubmit={() => {}} />);
+  expect(screen.getByLabelText('Name')).not.toHaveAttribute('aria-invalid', 'true');
+  expect(screen.getByLabelText('Listing URL')).not.toHaveAttribute('aria-invalid', 'true');
 });
 
 it('says which page each selector is read against', async () => {
