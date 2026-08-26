@@ -2,12 +2,15 @@ import 'reflect-metadata';
 import { Logger, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DatabaseModule } from './db/db.module';
+import { SettingsModule } from './settings/settings.module';
 import { ApiModule } from './api/api.module';
 import { corsConfigFrom } from './cors';
 
 // This module deliberately does not import AppModule: the API never
 // classifies, never notifies, and must not require ANTHROPIC_API_KEY to boot.
-@Module({ imports: [DatabaseModule, ApiModule] })
+// SettingsModule is DB-backed and has no filesystem dependency, so it cannot
+// throw at boot over a missing /config file.
+@Module({ imports: [DatabaseModule, SettingsModule, ApiModule] })
 class ApiRoot {}
 
 async function bootstrap(): Promise<void> {

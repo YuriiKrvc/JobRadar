@@ -1,13 +1,12 @@
-import type { SourcesConfig } from '../config/schema';
+import type { SourceSpec } from '../settings/schema';
 import type { JobSource } from '../types';
-import { createAtsSource } from './ats';
-import { createDjinniSource } from './djinni';
-import { createDouSource } from './dou';
+import { createCustomSource } from './custom';
 
-export function buildSources(cfg: SourcesConfig): JobSource[] {
-  return [
-    ...cfg.ats.map((e) => createAtsSource(e)),
-    ...cfg.djinni.map((url) => createDjinniSource(url)),
-    ...cfg.dou.map((url) => createDouSource(url)),
-  ];
+/**
+ * One adapter per spec. Per-spec rather than per-run because the pipeline needs
+ * each source's own blocklists alongside its adapter, and zipping two arrays by
+ * index to recover that pairing is a bug waiting to happen.
+ */
+export function buildSource(spec: SourceSpec): JobSource {
+  return createCustomSource(spec);
 }

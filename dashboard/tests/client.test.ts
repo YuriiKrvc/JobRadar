@@ -50,3 +50,28 @@ describe('api client', () => {
     expect(rows[0]!.source).toBe('dou');
   });
 });
+
+function failing(status: number, body: unknown): typeof fetch {
+  return (async () => new Response(JSON.stringify(body), {
+    status, headers: { 'content-type': 'application/json' },
+  })) as unknown as typeof fetch;
+}
+
+describe('error detail', () => {
+  it('reads NestJS message, not error', async () => {
+    const f = failing(400, {
+      statusCode: 400, error: 'Bad Request', message: 'profile.minSalaryUsd: must be positive',
+    });
+    await expect(fetchPostings({}, f)).rejects.toThrow('profile.minSalaryUsd: must be positive');
+  });
+
+  it('falls back to error when message is absent', async () => {
+    const f = failing(409, { statusCode: 409, error: 'Conflict' });
+    await expect(fetchPostings({}, f)).rejects.toThrow('Conflict');
+  });
+
+  it('falls back to the status when the body is not JSON', async () => {
+    const f = (async () => new Response('<html>502</html>', { status: 502 })) as unknown as typeof fetch;
+    await expect(fetchPostings({}, f)).rejects.toThrow('HTTP 502');
+  });
+});

@@ -1,12 +1,14 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PostingsRepository } from '../db/postings.repository';
 import { ClassifierService } from '../classifier/classifier.service';
-import { AppConfigService } from '../config/app-config.service';
-import { SOURCES } from '../sources/sources.module';
+import { BUILD_SOURCE, type BuildSource } from '../sources/sources.module';
+import { SettingsService } from '../settings/settings.service';
+import { NotifyConfig } from '../notify/notify.config';
 import { NOTIFIER, type Notifier } from '../notify/types';
 import { LLM_PROVIDER, type LLMProvider } from '../classifier/providers/types';
-import { applyHardFilters } from '../filters';
-import type { JobSource, RawPosting } from '../types';
+import { applyHardFilters, applyTitleFilter } from '../filters';
+import type { RawPosting } from '../types';
+import type { AppSettings } from '../settings/schema';
 
 export interface RunSummary {
   fetched: number;
@@ -27,6 +29,17 @@ const ZERO_SUBSCORES = {
   growth: { score: 0, note: 'hard filter' },
 };
 
+/**
+ * A fresh install has a seeded row with an empty CV and no sources. Classifying
+ * against an empty CV would burn tokens producing noise, so the run is skipped
+ * and the reason written to run_log, where the dashboard health panel shows it.
+ */
+export function incompleteReason(s: AppSettings): string | null {
+  if (s.cv.trim() === '') return 'no CV';
+  if (s.sources.length === 0) return 'no enabled sources';
+  return null;
+}
+
 @Injectable()
 export class PipelineService {
   private readonly log = new Logger(PipelineService.name);
@@ -34,8 +47,9 @@ export class PipelineService {
   constructor(
     private readonly repo: PostingsRepository,
     private readonly classifier: ClassifierService,
-    private readonly config: AppConfigService,
-    @Inject(SOURCES) private readonly sources: JobSource[],
+    private readonly settings: SettingsService,
+    private readonly notifyConfig: NotifyConfig,
+    @Inject(BUILD_SOURCE) private readonly buildSource: BuildSource,
     @Inject(NOTIFIER) private readonly notifier: Notifier,
     @Inject(LLM_PROVIDER) private readonly provider: LLMProvider,
   ) {}
@@ -46,7 +60,40 @@ export class PipelineService {
       classifyErrors: 0, notified: 0, notifyErrors: 0, sourceErrors: 0,
     };
 
-    for (const source of this.sources) {
+    // One read per tick: a run can never see settings change under it, and the
+    // next tick picks up a dashboard edit with no restart.
+    //
+    // A read failure — an unseeded database, a degraded connection — must reach
+    // run_log rather than only stderr: the health panel and the setup banner
+    // are the only places a user without `docker logs` can see why nothing is
+    // being scored.
+    let settings: AppSettings;
+    try {
+      settings = await this.settings.load();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.log.error(`settings load failed: ${msg}`);
+      await this.repo.logRun('settings', 'error', 0, msg);
+      return s;
+    }
+
+    const incomplete = incompleteReason(settings);
+    if (incomplete) {
+      this.log.warn(`settings incomplete: ${incomplete}`);
+      await this.repo.logRun('settings', 'error', 0, `settings incomplete: ${incomplete}`);
+      return s;
+    }
+
+    for (const spec of settings.sources) {
+      const source = this.buildSource(spec);
+
+      // A source may add words but never subtract them: the global lists are
+      // the floor.
+      const titleWords = [...settings.profile.blockedTitleWords, ...spec.blockedTitleWords];
+      const descriptionWords = [
+        ...settings.profile.blockedDescriptionWords, ...spec.blockedDescriptionWords,
+      ];
+
       let postings: RawPosting[];
       try {
         postings = await source.listPostings();
@@ -59,27 +106,49 @@ export class PipelineService {
         continue;
       }
 
-      for (const posting of postings) {
+      for (const listed of postings) {
         s.fetched += 1;
 
         // Always upsert so last_seen advances, but decide on the score row:
         // a posting whose classification threw has none, and must be retried.
-        await this.repo.upsert(posting);
-        if (await this.repo.hasScore(posting.id)) { s.skippedDuplicate += 1; continue; }
+        await this.repo.upsert(listed);
+        if (await this.repo.hasScore(listed.id)) { s.skippedDuplicate += 1; continue; }
 
-        const filter = applyHardFilters(posting, this.config.profile);
+        // Before the detail fetch on purpose — a title we already reject is not
+        // worth a request.
+        const byTitle = applyTitleFilter(listed, titleWords);
+        if (!byTitle.passed) {
+          s.hardFiltered += 1;
+          await this.recordHardFilter(listed.id, byTitle.rule, settings.rubric.version);
+          continue;
+        }
+
+        // After the dedup gate, so a posting's detail page is fetched once ever;
+        // before the hard filters, because the salary rule reads `description`
+        // and a listing snippet rarely carries one.
+        let posting = listed;
+        if (source.hydrate) {
+          try {
+            posting = await source.hydrate(listed);
+            await this.repo.saveHydrated(posting);
+          } catch (err) {
+            s.sourceErrors += 1;
+            const msg = err instanceof Error ? err.message : String(err);
+            this.log.error(`hydrate failed for ${listed.id}: ${msg}`);
+            await this.repo.logRun(source.id, 'error', 0, msg);
+            continue;
+          }
+        }
+
+        const filter = applyHardFilters(posting, settings.profile, descriptionWords);
         if (!filter.passed) {
           s.hardFiltered += 1;
-          await this.repo.insertScore(posting.id, {
-            total: 0, verdict: 'NO', subscores: ZERO_SUBSCORES,
-            reasoning: `hard-filter:${filter.rule}`,
-            providerId: 'hard-filter', rubricVersion: this.config.rubric.version,
-          });
+          await this.recordHardFilter(posting.id, filter.rule, settings.rubric.version);
           continue;
         }
 
         try {
-          await this.repo.insertScore(posting.id, await this.classifier.classify(posting));
+          await this.repo.insertScore(posting.id, await this.classifier.classify(posting, settings));
           s.classified += 1;
         } catch (err) {
           s.classifyErrors += 1;
@@ -92,8 +161,16 @@ export class PipelineService {
     return s;
   }
 
+  private recordHardFilter(postingId: string, rule: string, settingsVersion: string): Promise<number> {
+    return this.repo.insertScore(postingId, {
+      total: 0, verdict: 'NO', subscores: ZERO_SUBSCORES,
+      reasoning: `hard-filter:${rule}`,
+      providerId: 'hard-filter', settingsVersion,
+    });
+  }
+
   private async dispatchNotifications(s: RunSummary): Promise<void> {
-    const threshold = this.config.notifyThresholdFor(this.provider.id);
+    const threshold = this.notifyConfig.thresholdFor(this.provider.id);
     const pending = await this.repo.pendingNotifications(threshold, this.notifier.channel);
 
     for (const item of pending) {

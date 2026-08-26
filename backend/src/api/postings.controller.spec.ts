@@ -10,7 +10,8 @@ const rows: PostingRow[] = [{
   postingId: 'x:1', title: 'Senior Node Engineer', company: 'Acme',
   url: 'https://e.com/1', source: 'djinni', location: 'Remote',
   total: 82, verdict: 'STRONG', reasoning: 'good',
-  providerId: 'anthropic:claude-haiku-4-5', scoredAt: '2026-08-25T10:00:00.000Z',
+  providerId: 'anthropic:claude-haiku-4-5', settingsVersion: '3',
+  scoredAt: '2026-08-25T10:00:00.000Z',
 }];
 
 const health: HealthRow[] = [
@@ -48,6 +49,7 @@ describe('REST API', () => {
     expect(res.body.postings).toHaveLength(1);
     expect(res.body.postings[0].title).toBe('Senior Node Engineer');
     expect(typeof res.body.postings[0].scoredAt).toBe('string');
+    expect(res.body.postings[0].settingsVersion).toBe('3');
   });
 
   it('passes coerced query filters through to the query service', async () => {

@@ -13,6 +13,7 @@ export const PostingRowSchema = z.object({
   verdict: VerdictSchema,
   reasoning: z.string(),
   providerId: z.string(),
+  settingsVersion: z.string(),
   scoredAt: z.string(),
 });
 export type PostingRow = z.infer<typeof PostingRowSchema>;
