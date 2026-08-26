@@ -14,7 +14,10 @@ const WEIGHTS = { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growt
 const PROFILE = {
   excludedLocations: [], allowedEmploymentTypes: [],
   minSalaryUsd: null, timezone: 'Europe/Kyiv',
+  blockedTitleWords: [], blockedDescriptionWords: [],
 };
+
+const SELECTORS = { item: 'li.job', link: 'a.title' };
 
 beforeAll(async () => {
   await sql`DELETE FROM sources`;
@@ -53,37 +56,45 @@ describe('app_settings', () => {
 });
 
 describe('sources', () => {
-  it('stores an ats row and a djinni row', async () => {
+  it('stores rows keyed by name and url, enabled by default', async () => {
     await db.insert(sources).values([
-      { kind: 'ats', board: 'greenhouse', slug: 'acme' },
-      { kind: 'djinni', url: 'https://djinni.co/jobs/keyword-node/' },
+      { name: 'Acme', url: 'https://acme.example/careers', selectors: SELECTORS },
+      { name: 'Djinni', url: 'https://djinni.co/jobs/keyword-node/', selectors: SELECTORS },
     ]);
     const rows = await db.select().from(sources);
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.enabled)).toBe(true);
+    // The array columns default to empty, not null, so the pipeline never has
+    // to null-check a blocklist.
+    expect(rows.every((r) => Array.isArray(r.blockedTitleWords))).toBe(true);
+    expect(rows.every((r) => Array.isArray(r.blockedDescriptionWords))).toBe(true);
+    expect(rows.find((r) => r.name === 'Acme')!.selectors).toEqual(SELECTORS);
   });
 
-  it('rejects a duplicate identity', async () => {
-    await expect(
-      db.insert(sources).values({ kind: 'ats', board: 'greenhouse', slug: 'acme' }),
-    ).rejects.toThrow();
+  it('rejects a duplicate url with 23505 on sources_url_uniq', async () => {
+    // The constraint name is what sources.controller.ts switches on to tell the
+    // user WHICH field collided, so assert the property the driver actually
+    // sets, not just the code.
+    const err = await db.insert(sources).values({
+      name: 'Acme mirror', url: 'https://acme.example/careers', selectors: SELECTORS,
+    }).then(() => null, (e: any) => e.cause ?? e);
+    expect(err).toBeTruthy();
+    expect(err.code).toBe('23505');
+    expect(err.constraint_name ?? err.constraint).toBe('sources_url_uniq');
   });
 
-  it('treats null columns as equal, so duplicate djinni urls are rejected', async () => {
-    await expect(
-      db.insert(sources).values({ kind: 'djinni', url: 'https://djinni.co/jobs/keyword-node/' }),
-    ).rejects.toThrow();
+  it('rejects a duplicate name with 23505 on sources_name_uniq', async () => {
+    const err = await db.insert(sources).values({
+      name: 'Acme', url: 'https://acme.example/other', selectors: SELECTORS,
+    }).then(() => null, (e: any) => e.cause ?? e);
+    expect(err).toBeTruthy();
+    expect(err.code).toBe('23505');
+    expect(err.constraint_name ?? err.constraint).toBe('sources_name_uniq');
   });
 
-  it('rejects an ats row with no slug', async () => {
+  it('requires selectors', async () => {
     await expect(
-      db.insert(sources).values({ kind: 'ats', board: 'greenhouse' }),
-    ).rejects.toThrow();
-  });
-
-  it('rejects a djinni row carrying a slug', async () => {
-    await expect(
-      db.insert(sources).values({ kind: 'djinni', url: 'https://x.co/', slug: 'acme' }),
+      sql`INSERT INTO sources (name, url) VALUES ('No selectors', 'https://x.example/')`,
     ).rejects.toThrow();
   });
 });

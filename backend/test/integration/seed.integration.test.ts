@@ -19,6 +19,8 @@ function configDir(): string {
   writeFileSync(join(dir, 'rubric.md'), 'version: 3\n\nScore it.\n');
   writeFileSync(join(dir, 'profile.yaml'),
     'excludedLocations: ["United States"]\nallowedEmploymentTypes: ["full-time"]\nminSalaryUsd: 6000\ntimezone: "Europe/Kyiv"\n');
+  // A v1 sources.yaml on purpose: it carries no selectors, so the seeder must
+  // ignore it rather than write unusable rows.
   writeFileSync(join(dir, 'sources.yaml'),
     'ats:\n  - board: greenhouse\n    slug: acme\ndjinni: ["https://djinni.co/jobs/a/"]\ndou: []\n');
   return dir;
@@ -49,8 +51,16 @@ describe('seed', () => {
     });
     expect(row.version).toBe(1);
 
-    const rows = await db.select().from(sources);
-    expect(rows).toHaveLength(2);
+    // Sources are NOT imported: a v1 sources.yaml has no selectors, so it
+    // cannot produce a row the generic adapter could use. An upgrading install
+    // re-adds its boards from the dashboard.
+    expect(await db.select().from(sources)).toHaveLength(0);
+  });
+
+  it('seeds no source rows even when the config directory has a sources.yaml', async () => {
+    const dir = configDir();
+    expect(await seed(db, dir)).toBe('seeded-from-files');
+    expect(await db.select().from(sources)).toHaveLength(0);
   });
 
   it('inserts built-in defaults when no config directory exists', async () => {
@@ -91,11 +101,11 @@ describe('seed', () => {
     expect(row.cv).toBe('edited by the user');
   });
 
-  it('does not duplicate sources on a second run', async () => {
+  it('leaves the sources table empty across repeated runs', async () => {
     const dir = configDir();
     await seed(db, dir);
     await sql`DELETE FROM app_settings`;
     await seed(db, dir);
-    expect(await db.select().from(sources)).toHaveLength(2);
+    expect(await db.select().from(sources)).toHaveLength(0);
   });
 });
