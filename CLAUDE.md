@@ -285,10 +285,28 @@ Plain React 19, no router, no state library, no data-fetching library — a
 `useApi` hook over `fetch`, a `useSave` hook for the writes, and a two-tab
 `useState` toggle between Postings and Settings. Two screens do not justify a
 routing dependency; a third might. The Settings tab has four sections (CV,
-profile, sources, rubric), each with its own dirty-tracked Save button and its
-own error state, matching the three separate document `PUT`s — that is what
-makes "one version bump per save" fall out of the design instead of needing
-diff logic.
+profile, sources, rubric). CV, profile and rubric each have their own
+dirty-tracked Save button and their own error state, matching the three
+separate document `PUT`s — that is what makes "one version bump per save"
+fall out of the design instead of needing diff logic. **Sources is the
+exception**: each row write (`POST`, `PUT`, `PATCH`, `DELETE`) is its own
+immediate request and none of them bumps `app_settings.version`, so the
+section renders the same header with no dirty chip and no Save button. A
+Save button there would imply a batch write that does not exist.
+
+The look is the Broadsheet design system, ported from the delivered design doc
+into `src/styles.css` as plain global CSS: tokens in `:root`, then component
+classes (`.btn`, `.input`, `.field`, `.tag`, `.table`). Source Serif 4 is
+self-hosted under `public/fonts/`, extracted by
+`scripts/extract-design-fonts.py` — the dashboard must not depend on a font
+CDN, and that script is the provenance record for twelve binary files. Two
+values in the port are measured rather than chosen and must not be "tidied":
+`.input::placeholder` at 65% ink with `opacity: 1` (the browser default misses
+4.5:1 on the surface fill, and Firefox fades placeholders further), and `.btn`
+at 14px to match `.input`, because the two sit side by side. Each settings
+section renders as `role="region"` named by its heading — with four "Save"
+buttons on one page, the region is what disambiguates them, for a screen
+reader and for the tests alike.
 
 Settings state is owned by `App`, not by `SettingsPage`, so the Postings tab's
 stale-score badge sees a save immediately and switching tabs does not refetch.
