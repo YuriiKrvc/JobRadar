@@ -184,8 +184,14 @@ Then walk the Settings tab and confirm:
 - Fonts load from `/fonts/` — check the network panel for zero requests to
   any font CDN.
 - Tab through the page: every control takes a visible cyan focus ring.
-- Narrow the window to 800px: the tagline hides, the two-column sections wrap
-  to one, and nothing overflows horizontally.
+- The tagline hides below 820px window width (`@media (max-width: 820px)` in
+  `styles.css`), not 800px, and neither two-column section wraps at that
+  width — check separately. Profile's columns (`.profile-col { min-width:
+  290px }`, `.profile-aside { width: 250px }`, 34px gap) need roughly 610px
+  of inner width to wrap to one column; Rubric's (`.rubric-body { min-width:
+  320px }`, `.rubric-weights { width: 320px }`, 30px gap) need roughly 700px.
+  Confirm nothing overflows horizontally at any width down to the smallest
+  you test.
 
 ## Open questions, carried over as future work
 
