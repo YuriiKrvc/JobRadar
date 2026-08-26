@@ -136,9 +136,15 @@ erroring: a listing page's markup usually contains one or two blocks that match
 the item selector without being postings.
 
 Posting ids are `src:<source uuid>:<externalId>`, where `externalId` is the
-trailing numeric path segment of the posting URL when there is one and the full
-pathname otherwise. Keying on the row's uuid rather than its name means renaming
-a source does not orphan its postings.
+posting URL's pathname with any trailing slash removed, plus its query string.
+The query string is not optional: a board that addresses postings as
+`/job?id=42` would otherwise collapse all of them onto one id and exactly one
+would ever be scored. Extracting a numeric id was considered and rejected — the
+boards in play spell theirs too differently for one rule (`/jobs/123-title/`,
+`/careers/senior-node`, `?id=42`), and a wrong extraction silently merges two
+postings, which is worse than an id that carries some slug text. Keying on the
+row's uuid rather than its name means renaming a source does not orphan its
+postings.
 
 ### Detail fetch
 
@@ -333,7 +339,12 @@ the selector fields, and the two per-source word lists. The table becomes
 bound to that row and saves through `PUT`. The comment about identity being
 immutable comes out — it no longer is, and that is the point.
 
-The Profile section gains the two global word lists as one-per-line textareas.
+The Profile section gains the two global word lists, using the existing
+`ChipInput` component that already serves `excludedLocations` and
+`allowedEmploymentTypes` — a word is typed and committed with Enter, and appears
+as a removable chip. A one-per-line textarea was the first thought, but a third
+list-of-strings control in the same form with different interaction rules is
+worse than reusing the one that is already there.
 
 Every new field carries help text, because a CSS selector field with no
 explanation is unusable by the person who owns this dashboard six months from
@@ -342,11 +353,11 @@ now:
 - **Blocked words — titles** — *Reject a posting outright if its title contains
   one of these words. Checked before the job page is downloaded, so it also
   saves a request. Whole words only, case-insensitive — `php` will not match
-  `phpstorm`. One per line.*
+  `phpstorm`.*
 - **Blocked words — descriptions** — *Reject a posting if its full description
   contains one of these words. Checked after the job page is downloaded. Use it
   for deal-breakers in the body text, like `relocation required`. Whole words and
-  phrases, case-insensitive. One per line.*
+  phrases, case-insensitive.*
 - **Per-source word lists** — *Extra blocked words for this board only, added to
   the global lists in Profile. Leave empty to use the global lists alone.*
 - **Selectors** — each field labelled with what it selects and whether it is
