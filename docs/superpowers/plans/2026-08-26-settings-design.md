@@ -606,14 +606,15 @@ Add to `dashboard/tests/SettingsPage.test.tsx`, inside the existing `describe('S
   });
 ```
 
-Then update every existing query in the file that names a per-section save button. There are four kinds of change, all mechanical:
+Then update the **CV queries only** — this file exercises all four sections in one render, so
+the profile and rubric queries are updated by Tasks 4 and 5, as those sections land:
 
 - `screen.getByRole('button', { name: /save cv/i })` becomes
   `within(screen.getByRole('region', { name: 'CV' })).getByRole('button', { name: /^Save/ })`.
-- `screen.getByRole('button', { name: /save profile/i })` becomes
-  `within(screen.getByRole('region', { name: 'Profile & hard filters' })).getByRole('button', { name: /^Save/ })`.
-- The `'keeps an unsaved rubric weight edit…'` test's `screen.getByLabelText('growth')` becomes `screen.getByLabelText('Growth')` — Task 5 gives the weights their designed labels.
-- `screen.findByText(/version 3/i)` and `/version 4/i` still pass: the version line keeps the words "version 3".
+- Leave `/save profile/i` and `getByLabelText('growth')` alone. They belong to sections this
+  task does not convert.
+- `screen.findByText(/version 3/i)` and `/version 4/i` still pass: the version line keeps the
+  words "version 3".
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -727,10 +728,12 @@ Append to `dashboard/src/styles.css`:
 - [ ] **Step 6: Run the tests to verify they pass**
 
 ```bash
-cd dashboard && npx vitest run tests/SettingsPage.test.tsx
+cd dashboard && npx vitest run tests/SettingsPage.test.tsx -t "CV"
 ```
 
-Expected: PASS. The other suites will still fail until their own tasks land — that is expected; run this one file only.
+Expected: PASS. Run the CV describe block only. The rest of this file exercises Profile and
+Rubric, which are still unconverted and therefore red until Tasks 4 and 5 — the whole file is
+asserted green at Task 7. Do not "fix" those failures here.
 
 - [ ] **Step 7: Commit**
 
@@ -827,6 +830,13 @@ const BASE = {
 and rename whatever fixture the file already uses to match, rather than keeping two.
 
 Update the file's existing save-button queries from `{ name: /save profile/i }` to `{ name: /^Save/ }`.
+
+Task 3 deliberately left this file's profile queries alone, so pick them up here too. In
+`dashboard/tests/SettingsPage.test.tsx`, change
+`screen.getByRole('button', { name: /save profile/i })` to
+`within(screen.getByRole('region', { name: 'Profile & hard filters' })).getByRole('button', { name: /^Save/ })`
+and add `within` to the `@testing-library/react` import if it is not already there. Leave
+`getByLabelText('growth')` alone — Task 5 renames it with the label it asserts.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -929,9 +939,10 @@ const KNOWN_EMPLOYMENT_TYPES = ['full-time', 'part-time', 'contract', 'internshi
 
         <div className="profile-blocklists">
           <div className="profile-col">
-            <h5>Blocked words — titles</h5>
+            {/* The ChipInput's own <label> is the visible heading — styled in the
+                heading serif below. A separate <h5> would duplicate the string. */}
             <ChipInput
-              id="blocked-title-words" label="Blocked words — titles" hideLabel
+              id="blocked-title-words" label="Blocked words — titles"
               help="Reject a posting outright if its title contains one of these words. Checked before the job page is downloaded, so it also saves a request. Whole words only, case-insensitive — php will not match phpstorm."
               value={draft.blockedTitleWords}
               onChange={(v) => set('blockedTitleWords', v)}
@@ -940,9 +951,8 @@ const KNOWN_EMPLOYMENT_TYPES = ['full-time', 'part-time', 'contract', 'internshi
             />
           </div>
           <div className="profile-col">
-            <h5>Blocked words — descriptions</h5>
             <ChipInput
-              id="blocked-description-words" label="Blocked words — descriptions" hideLabel
+              id="blocked-description-words" label="Blocked words — descriptions"
               help="Checked after the job page is downloaded. Use it for deal-breakers in the body text, like “relocation required”. Whole words and phrases, case-insensitive."
               value={draft.blockedDescriptionWords}
               onChange={(v) => set('blockedDescriptionWords', v)}
@@ -979,7 +989,7 @@ and `SettingsPage.tsx` passes it: `<ProfileForm initial={s.profile} version={s.v
 
 - [ ] **Step 4: Give ChipInput its designed markup**
 
-In `dashboard/src/components/ChipInput.tsx`: add `placeholder?: string` and `hideLabel?: boolean` to `Props`; render the label with `className={hideLabel ? 'visually-hidden' : undefined}` (the heading above it is the visible label, but the input must keep a programmatic one); give the `×` buttons `className="btn-bare"`; give the text input `className="input chip-input"` and `placeholder={placeholder ?? 'Type and press Enter'}`. Leave `commit`, the duplicate hint and the suggestions datalist exactly as they are — the mock silently drops a duplicate, which is worse than what is already here.
+In `dashboard/src/components/ChipInput.tsx`: add `placeholder?: string` to `Props`; give the `×` buttons `className="btn-bare"`; give the text input `className="input chip-input"` and `placeholder={placeholder ?? 'Type and press Enter'}`. Leave `commit`, the duplicate hint and the suggestions datalist exactly as they are — the mock silently drops a duplicate, which is worse than what is already here.
 
 - [ ] **Step 5: Add the profile styles**
 
@@ -987,15 +997,15 @@ Append to `dashboard/src/styles.css`:
 
 ```css
 /* ── Profile ──────────────────────────────────────────────────────────── */
-.visually-hidden {
-  position: absolute; width: 1px; height: 1px; margin: -1px;
-  padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
-}
 .profile-grid { display: flex; gap: 34px; flex-wrap: wrap; }
 .profile-col { flex: 1; min-width: 290px; }
 .profile-aside { width: 250px; flex: none; }
 .profile-blocklists { width: 100%; display: flex; gap: 34px; flex-wrap: wrap; padding-top: 22px; }
-.profile-blocklists h5 { margin-bottom: 5px; }
+/* The blocklist headings ARE their inputs' labels — one string, one node. */
+.profile-blocklists > .profile-col > .field > label {
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 15px; color: var(--color-text); margin-bottom: 5px;
+}
 
 .chips { display: flex; flex-wrap: wrap; gap: 7px; list-style: none; padding: 0; margin: 0 0 7px; }
 .chip {
@@ -1063,7 +1073,12 @@ git commit -m "feat(dashboard): the profile section and its one-way-door warning
 
 - [ ] **Step 1: Write the failing tests**
 
-Add to `dashboard/tests/RubricEditor.test.tsx`, and change every existing `getByLabelText('growth')`-style query to its capitalised label and every `{ name: /save rubric/i }` to `{ name: /^Save/ }`:
+Add to `dashboard/tests/RubricEditor.test.tsx`, and change every existing
+`getByLabelText('growth')`-style query to its capitalised label and every
+`{ name: /save rubric/i }` to `{ name: /^Save/ }`. Tasks 3 and 4 deliberately left
+`dashboard/tests/SettingsPage.test.tsx` alone on this point, so update it here too: its
+`'keeps an unsaved rubric weight edit…'` test queries `screen.getByLabelText('growth')`, which
+becomes `screen.getByLabelText('Growth')`.
 
 ```tsx
 it('labels the weights in prose and shows each share of the running sum', () => {
