@@ -67,7 +67,8 @@ describe('createCustomSource.listPostings', () => {
 
   it('keys the posting id on the source uuid, not its name', async () => {
     const out = await createCustomSource(spec(), fetchOk(LISTING)).listPostings();
-    expect(out[0]!.id).toBe('src:11111111-1111-1111-1111-111111111111:/careers/123-senior-node');
+    expect(out[0]!.id)
+      .toBe('src:11111111-1111-1111-1111-111111111111:acme.com/careers/123-senior-node');
   });
 
   it('takes the title from the link text when no title selector is given', async () => {
@@ -105,12 +106,20 @@ describe('createCustomSource.listPostings', () => {
 });
 
 describe('externalIdFrom', () => {
-  it('uses the pathname with any trailing slash removed', () => {
-    expect(externalIdFrom('https://acme.com/careers/123-node/')).toBe('/careers/123-node');
+  it('uses the host and pathname with any trailing slash removed', () => {
+    expect(externalIdFrom('https://acme.com/careers/123-node/')).toBe('acme.com/careers/123-node');
+  });
+
+  it('separates two same-path postings on different hosts', () => {
+    // An aggregator's links point at company sites, so this is reachable. A
+    // shared id would make the second posting an already-seen duplicate and it
+    // would never be scored.
+    expect(externalIdFrom('https://a.com/careers/backend'))
+      .not.toBe(externalIdFrom('https://b.com/careers/backend'));
   });
 
   it('keeps the query string, because some boards put the id there', () => {
-    expect(externalIdFrom('https://acme.com/job?id=42')).toBe('/job?id=42');
+    expect(externalIdFrom('https://acme.com/job?id=42')).toBe('acme.com/job?id=42');
   });
 
   it('drops tracking parameters that do not identify the posting', () => {
@@ -118,30 +127,32 @@ describe('externalIdFrom', () => {
     // listing block the link was in, so the same vacancy appears under
     // several values and would otherwise be scored once per value.
     expect(externalIdFrom('https://jobs.dou.ua/companies/freitty/vacancies/358946/?from=list_hot'))
-      .toBe('/companies/freitty/vacancies/358946');
+      .toBe('jobs.dou.ua/companies/freitty/vacancies/358946');
   });
 
   it('drops utm_* and the common ad-click parameters', () => {
     expect(externalIdFrom('https://acme.com/careers/12?utm_source=x&utm_medium=y&gclid=z'))
-      .toBe('/careers/12');
+      .toBe('acme.com/careers/12');
   });
 
   it('keeps a parameter that identifies the posting', () => {
-    expect(externalIdFrom('https://acme.com/job?id=42&from=list_hot')).toBe('/job?id=42');
+    expect(externalIdFrom('https://acme.com/job?id=42&from=list_hot')).toBe('acme.com/job?id=42');
   });
 
   it('keeps every non-tracking parameter, in order', () => {
-    expect(externalIdFrom('https://acme.com/job?id=42&lang=en')).toBe('/job?id=42&lang=en');
+    expect(externalIdFrom('https://acme.com/job?id=42&lang=en'))
+      .toBe('acme.com/job?id=42&lang=en');
   });
 
   it('is case-insensitive about parameter names', () => {
-    expect(externalIdFrom('https://acme.com/careers/12?UTM_Source=x&From=y')).toBe('/careers/12');
+    expect(externalIdFrom('https://acme.com/careers/12?UTM_Source=x&From=y'))
+      .toBe('acme.com/careers/12');
   });
 
   it('does not strip a parameter whose name merely contains a tracking word', () => {
     // Anchoring guard: unanchored, this would lose all three.
     expect(externalIdFrom('https://acme.com/job?fromage=1&my_source=2&resourceId=3'))
-      .toBe('/job?fromage=1&my_source=2&resourceId=3');
+      .toBe('acme.com/job?fromage=1&my_source=2&resourceId=3');
   });
 });
 

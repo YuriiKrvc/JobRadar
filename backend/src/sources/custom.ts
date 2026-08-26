@@ -26,6 +26,14 @@ const TRACKING_PARAM = /^(?:from|referrer|fbclid|gclid|msclkid|mc_cid|mc_eid|utm
  * posting onto one id and the pipeline would score exactly one of them. So the
  * query string survives, minus the parameters that identify a referrer rather
  * than a posting.
+ *
+ * The host is part of the identity for the same reason. A source is any listing
+ * URL plus selectors, so an aggregator's `link` hrefs can point at different
+ * company sites: without the host, `https://a.com/careers/backend` and
+ * `https://b.com/careers/backend` share one posting id and the second is
+ * skipped forever as an already-seen duplicate, with no log line and no
+ * dashboard row. A false merge loses a posting silently; a false split only
+ * costs one duplicate classification.
  */
 export function externalIdFrom(url: string): string {
   const u = new URL(url);
@@ -36,7 +44,8 @@ export function externalIdFrom(url: string): string {
   }
 
   const search = u.searchParams.toString();
-  return `${u.pathname.replace(/\/+$/, '')}${search === '' ? '' : `?${search}`}`;
+  const path = u.pathname.replace(/\/+$/, '');
+  return `${u.host}${path}${search === '' ? '' : `?${search}`}`;
 }
 
 export function createCustomSource(spec: SourceSpec, fetchFn: FetchFn = fetch): JobSource {

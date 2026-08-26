@@ -164,14 +164,18 @@ The seams inside it that are not obvious from the signature:
 - **`cheerio` parses static HTML only.** A board that renders its listing in the
   browser yields zero postings, and no selector can fix that. This is the
   feature's one hard limitation, not a bug to be filed.
-- **`externalIdFrom(url)` keeps the query string, minus referrer parameters**
+- **`externalIdFrom(url)` keeps the host and the query string, minus referrer
+  parameters**
   (`from`, `referrer`, `utm_*`, ad-click ids). The pathname alone is not enough —
   a board addressing postings as `/job?id=42` would collapse every posting onto
   one id. `from` is stripped because DOU's listing links carry `?from=list_hot`,
   which would otherwise split one vacancy across several postings. `ref` and
   `source` are deliberately **not** stripped: a false merge silently drops a
   posting from scoring, while a false split only wastes one duplicate
-  classification, so the list errs short on purpose.
+  classification, so the list errs short on purpose. The host is in the id for
+  that same reason: an aggregator's links can point at different company sites,
+  and without it `a.com/careers/backend` and `b.com/careers/backend` would be
+  one posting.
 - **A `detail` selector is close to mandatory in practice.** Without one,
   `hydrate` falls back to `htmlToText(whole page)`, which drags in nav, JSON-LD
   and sidebar text. That is not merely wasted tokens: verification against DOU
