@@ -7,9 +7,10 @@ interface Props {
   onChange: (next: string[]) => void;
   suggestions?: string[];
   disabled?: boolean;
+  help?: string;
 }
 
-export function ChipInput({ id, label, value, onChange, suggestions, disabled }: Props) {
+export function ChipInput({ id, label, value, onChange, suggestions, disabled, help }: Props) {
   const [draft, setDraft] = useState('');
   const [hint, setHint] = useState<string | null>(null);
 
@@ -37,6 +38,7 @@ export function ChipInput({ id, label, value, onChange, suggestions, disabled }:
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
+      {help && <p className="field-help">{help}</p>}
       <ul className="chips">
         {value.map((v) => (
           <li key={v} className="chip">

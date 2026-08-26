@@ -26,6 +26,8 @@ th { cursor: pointer; user-select: none; }
 .settings-actions { display: flex; gap: 0.75rem; align-items: center; }
 
 .field { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.75rem; }
+.field-help { margin: 0; font-size: 0.8rem; opacity: 0.75; }
+.source-form fieldset.selectors { border: 1px solid currentColor; padding: 0.75rem; margin-bottom: 0.75rem; }
 .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; list-style: none; padding: 0; margin: 0; }
 .chip { display: inline-flex; align-items: center; gap: 0.3rem;
         border: 1px solid currentColor; border-radius: 999px; padding: 0.1rem 0.6rem; }

@@ -87,4 +87,9 @@ describe('ChipInput', () => {
     expect(screen.getByRole('button', { name: /remove us/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /remove india/i })).toBeDisabled();
   });
+
+  it('renders help text associated with the input', () => {
+    render(<ChipInput id="w" label="Words" value={[]} onChange={() => {}} help="Type a word and press Enter." />);
+    expect(screen.getByText('Type a word and press Enter.')).toBeInTheDocument();
+  });
 });
