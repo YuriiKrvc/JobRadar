@@ -6,7 +6,7 @@ import { SettingsService } from '../settings/settings.service';
 import { NotifyConfig } from '../notify/notify.config';
 import { NOTIFIER, type Notifier } from '../notify/types';
 import { LLM_PROVIDER, type LLMProvider } from '../classifier/providers/types';
-import { applyHardFilters } from '../filters';
+import { applyHardFilters, applyTitleFilter } from '../filters';
 import type { RawPosting } from '../types';
 import type { AppSettings } from '../settings/schema';
 
@@ -87,6 +87,13 @@ export class PipelineService {
     for (const spec of settings.sources) {
       const source = this.buildSource(spec);
 
+      // A source may add words but never subtract them: the global lists are
+      // the floor.
+      const titleWords = [...settings.profile.blockedTitleWords, ...spec.blockedTitleWords];
+      const descriptionWords = [
+        ...settings.profile.blockedDescriptionWords, ...spec.blockedDescriptionWords,
+      ];
+
       let postings: RawPosting[];
       try {
         postings = await source.listPostings();
@@ -99,22 +106,44 @@ export class PipelineService {
         continue;
       }
 
-      for (const posting of postings) {
+      for (const listed of postings) {
         s.fetched += 1;
 
         // Always upsert so last_seen advances, but decide on the score row:
         // a posting whose classification threw has none, and must be retried.
-        await this.repo.upsert(posting);
-        if (await this.repo.hasScore(posting.id)) { s.skippedDuplicate += 1; continue; }
+        await this.repo.upsert(listed);
+        if (await this.repo.hasScore(listed.id)) { s.skippedDuplicate += 1; continue; }
 
-        const filter = applyHardFilters(posting, settings.profile, settings.profile.blockedDescriptionWords);
+        // Before the detail fetch on purpose — a title we already reject is not
+        // worth a request.
+        const byTitle = applyTitleFilter(listed, titleWords);
+        if (!byTitle.passed) {
+          s.hardFiltered += 1;
+          await this.recordHardFilter(listed.id, byTitle.rule, settings.rubric.version);
+          continue;
+        }
+
+        // After the dedup gate, so a posting's detail page is fetched once ever;
+        // before the hard filters, because the salary rule reads `description`
+        // and a listing snippet rarely carries one.
+        let posting = listed;
+        if (source.hydrate) {
+          try {
+            posting = await source.hydrate(listed);
+            await this.repo.upsert(posting);
+          } catch (err) {
+            s.sourceErrors += 1;
+            const msg = err instanceof Error ? err.message : String(err);
+            this.log.error(`hydrate failed for ${listed.id}: ${msg}`);
+            await this.repo.logRun(source.id, 'error', 0, msg);
+            continue;
+          }
+        }
+
+        const filter = applyHardFilters(posting, settings.profile, descriptionWords);
         if (!filter.passed) {
           s.hardFiltered += 1;
-          await this.repo.insertScore(posting.id, {
-            total: 0, verdict: 'NO', subscores: ZERO_SUBSCORES,
-            reasoning: `hard-filter:${filter.rule}`,
-            providerId: 'hard-filter', settingsVersion: settings.rubric.version,
-          });
+          await this.recordHardFilter(posting.id, filter.rule, settings.rubric.version);
           continue;
         }
 
@@ -130,6 +159,14 @@ export class PipelineService {
 
     await this.dispatchNotifications(s);
     return s;
+  }
+
+  private recordHardFilter(postingId: string, rule: string, settingsVersion: string): Promise<number> {
+    return this.repo.insertScore(postingId, {
+      total: 0, verdict: 'NO', subscores: ZERO_SUBSCORES,
+      reasoning: `hard-filter:${rule}`,
+      providerId: 'hard-filter', settingsVersion,
+    });
   }
 
   private async dispatchNotifications(s: RunSummary): Promise<void> {

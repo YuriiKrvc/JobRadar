@@ -73,9 +73,14 @@ const settings: AppSettings = {
   sources: [spec('a')],
 };
 
+function withProfile(over: Partial<AppSettings['profile']>): AppSettings {
+  return { ...settings, profile: { ...settings.profile, ...over } };
+}
+
 async function build(over: {
   sources?: JobSource[];
   settings?: AppSettings;
+  specs?: Array<{ name: string; blockedTitleWords?: string[]; blockedDescriptionWords?: string[] }>;
   loadSettings?: () => Promise<AppSettings>;
   classify?: (p: RawPosting, s: AppSettings) => Promise<any>;
   notifier?: { channel: string; send: (i: any) => Promise<void> };
@@ -88,9 +93,30 @@ async function build(over: {
   }));
   const sources = over.sources ?? [source('a', [posting('a:1')])];
   const byName = new Map(sources.map((src) => [src.id, src]));
-  // Unless the test pins its own settings, the snapshot's specs are derived
-  // from the fakes it passed in, so every spec resolves to one of them.
-  const loaded = over.settings ?? { ...settings, sources: sources.map((src) => spec(src.id)) };
+  // Unless the test pins its own `sources` array (e.g. to test the
+  // no-sources-enabled path), the snapshot's specs are derived from the fakes
+  // it passed in, so every spec resolves to one of them — even when the test
+  // also overrides `settings` for an unrelated field like `profile`.
+  const derivedSpecs = sources.map((src) => spec(src.id));
+  const loaded = over.settings
+    ? { ...over.settings, sources: over.settings.sources === settings.sources ? derivedSpecs : over.settings.sources }
+    : { ...settings, sources: derivedSpecs };
+  // A test that wants one source to carry its own word lists patches the
+  // snapshot's specs by name after it's built, rather than hand-rolling a
+  // whole SourceSpec.
+  if (over.specs) {
+    const patchByName = new Map(over.specs.map((p) => [p.name, p]));
+    loaded.sources = loaded.sources.map((sp) => {
+      const patch = patchByName.get(sp.name);
+      return patch
+        ? {
+            ...sp,
+            blockedTitleWords: patch.blockedTitleWords ?? sp.blockedTitleWords,
+            blockedDescriptionWords: patch.blockedDescriptionWords ?? sp.blockedDescriptionWords,
+          }
+        : sp;
+    });
+  }
 
   const moduleRef = await Test.createTestingModule({
     providers: [
@@ -108,7 +134,10 @@ async function build(over: {
     ],
   }).compile();
 
-  return { svc: moduleRef.get(PipelineService), repo };
+  // `svc` is the original name; `service` is an alias so the newer tests can
+  // use the name the brief specifies without a rewrite of the existing ones.
+  const svc = moduleRef.get(PipelineService);
+  return { svc, service: svc, repo };
 }
 
 describe('PipelineService', () => {
@@ -267,5 +296,103 @@ describe('settings read failure', () => {
     });
     await svc.run();
     expect(classify).not.toHaveBeenCalled();
+  });
+});
+
+describe('blocklists and hydration', () => {
+  it('rejects a blocked title without fetching the detail page', async () => {
+    const hydrate = jest.fn(async (p: RawPosting) => ({ ...p, description: 'full body' }));
+    const src: JobSource = { id: 'Acme', listPostings: async () => [posting('a:1', { title: 'PHP Developer' })], hydrate };
+    const { service, repo } = await build({
+      sources: [src],
+      settings: withProfile({ blockedTitleWords: ['php'] }),
+    });
+
+    const s = await service.run();
+
+    expect(hydrate).not.toHaveBeenCalled();
+    expect(s.hardFiltered).toBe(1);
+    expect(repo.insertScore).toHaveBeenCalledWith('a:1', expect.objectContaining({
+      total: 0, verdict: 'NO', providerId: 'hard-filter',
+      reasoning: 'hard-filter:title-word:php',
+    }));
+  });
+
+  it('unions the global and per-source title words', async () => {
+    const src: JobSource = { id: 'Acme', listPostings: async () => [posting('a:1', { title: 'Intern Engineer' })] };
+    const { service } = await build({
+      sources: [src],
+      specs: [{ name: 'Acme', blockedTitleWords: ['intern'] }],
+      settings: withProfile({ blockedTitleWords: ['php'] }),
+    });
+    expect((await service.run()).hardFiltered).toBe(1);
+  });
+
+  it('hydrates a new posting, re-upserts it, and classifies the fetched body', async () => {
+    const hydrate = jest.fn(async (p: RawPosting) => ({ ...p, description: 'node postgres deep dive' }));
+    const src: JobSource = { id: 'Acme', listPostings: async () => [posting('a:1', { description: '' })], hydrate };
+    const classify = jest.fn(async (_p: RawPosting, _s: AppSettings) => ({
+      total: 80, verdict: 'STRONG', subscores: {}, reasoning: 'ok',
+      providerId: 'fake', settingsVersion: '1',
+    }));
+    const { service, repo } = await build({ sources: [src], classify });
+
+    await service.run();
+
+    expect(hydrate).toHaveBeenCalledTimes(1);
+    expect(repo.upsert).toHaveBeenCalledTimes(2);
+    expect(classify.mock.calls[0]![0].description).toBe('node postgres deep dive');
+  });
+
+  it('does not hydrate a posting that already has a score', async () => {
+    const hydrate = jest.fn(async (p: RawPosting) => p);
+    const src: JobSource = { id: 'Acme', listPostings: async () => [posting('a:1')], hydrate };
+    const repo = fakeRepo();
+    await repo.insertScore('a:1', { total: 10 } as any);
+    const { service } = await build({ sources: [src], repo });
+
+    const s = await service.run();
+
+    expect(hydrate).not.toHaveBeenCalled();
+    expect(s.skippedDuplicate).toBe(1);
+  });
+
+  it('leaves a posting unscored and logs a source error when hydrate throws', async () => {
+    const src: JobSource = {
+      id: 'Acme',
+      listPostings: async () => [posting('a:1')],
+      hydrate: async () => { throw new Error('HTTP 404'); },
+    };
+    const { service, repo } = await build({ sources: [src] });
+
+    const s = await service.run();
+
+    expect(s.sourceErrors).toBe(1);
+    expect(s.classified).toBe(0);
+    expect(repo.insertScore).not.toHaveBeenCalled();
+    expect(repo.runs).toEqual(expect.arrayContaining([{ source: 'Acme', status: 'error' }]));
+  });
+
+  it('applies the description blocklist to the hydrated body, not the snippet', async () => {
+    const src: JobSource = {
+      id: 'Acme',
+      listPostings: async () => [posting('a:1', { description: 'clean snippet' })],
+      hydrate: async (p) => ({ ...p, description: 'Relocation required to Berlin' }),
+    };
+    const { service, repo } = await build({
+      sources: [src],
+      settings: withProfile({ blockedDescriptionWords: ['relocation required'] }),
+    });
+
+    expect((await service.run()).hardFiltered).toBe(1);
+    expect(repo.insertScore).toHaveBeenCalledWith('a:1', expect.objectContaining({
+      reasoning: 'hard-filter:description-word:relocation required',
+    }));
+  });
+
+  it('still runs when a source has no hydrate method', async () => {
+    const src: JobSource = { id: 'Legacy', listPostings: async () => [posting('a:1')] };
+    const { service } = await build({ sources: [src] });
+    expect((await service.run()).classified).toBe(1);
   });
 });
