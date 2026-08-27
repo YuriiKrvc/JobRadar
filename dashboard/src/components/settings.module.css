@@ -149,3 +149,22 @@
 }
 .tagAccent { background: var(--color-accent-100); color: var(--color-accent-800); }
 .tagAccent2 { background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
+
+/* ── CV ───────────────────────────────────────────────────────────────── */
+.cvMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+.cvMeta label { margin: 0; font-size: 12px; font-weight: 400; color: var(--ink-70); }
+.cvCount { font-size: 11.5px; color: var(--ink-50); }
+.cvArea {
+  min-height: 340px;
+  padding: 15px 17px;
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: var(--font-body);
+}

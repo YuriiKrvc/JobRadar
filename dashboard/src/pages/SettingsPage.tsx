@@ -28,6 +28,8 @@ export function SettingsPage() {
     <div className={css.page}>
       <p className={css.version}>
         Scoring settings version {s.version} — changes apply on the next run.
+        Saving does not rescore what is already here; those rows are marked
+        stale instead.
       </p>
 
       <ProfileForm initial={s.profile} onSaved={settings.reload} />
@@ -37,6 +39,8 @@ export function SettingsPage() {
       <DocumentEditor
         id="cv"
         label="CV"
+        blurb="The text every posting is scored against."
+        version={s.version}
         initial={s.cv}
         onSave={(v) => saveCv(v)}
         onSaved={settings.reload}
