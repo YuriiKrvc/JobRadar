@@ -28,10 +28,21 @@
   --color-neutral-900: #2d2b2b;
 
   --color-accent-100: #e9f8ff;
+  --color-accent-200: #cbeeff;
+  --color-accent-300: #99e0ff;
+  --color-accent-400: #62c5ee;
+  --color-accent-500: #38a6cf;
+  --color-accent-600: #1186ac;
   --color-accent-700: #006786;
   --color-accent-800: #004961;
+  --color-accent-900: #0a303e;
 
   --color-accent-2-100: #fff1f4;
+  --color-accent-2-200: #ffdee6;
+  --color-accent-2-300: #ffc0d0;
+  --color-accent-2-400: #ff90b1;
+  --color-accent-2-500: #ff458e;
+  --color-accent-2-600: #d82071;
   --color-accent-2-700: #aa0b56;
   --color-accent-2-800: #790e3d;
   --color-accent-2-900: #4b1528;

@@ -67,3 +67,85 @@
 @media (max-width: 820px) {
   .page { padding: 16px 18px 40px; }
 }
+
+/* ── Controls ─────────────────────────────────────────────────────────
+   The Settings surface's shared control vocabulary. A rule that only one
+   component uses belongs in that component's module, not here. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  /* 14px matches .input — the two sit side by side in the section header. */
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: var(--space-2) 18px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.buttonPrimary { background: var(--color-accent); color: var(--color-bg); }
+.buttonPrimary:hover { background: var(--color-accent-600); }
+.buttonPrimary:active { background: var(--color-accent-700); }
+
+.buttonSecondary { border-color: var(--color-divider); }
+.buttonSecondary:hover { background: var(--ink-05); }
+.buttonSecondary:active { background: var(--ink-12); }
+
+/* A button that is only its text — chip removal, Edit/Delete, the
+   disclosure line — where a button box would be noise on an open page. */
+.buttonBare {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.input {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  caret-color: var(--color-accent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+/* Measured, not eyeballed: the browser default gray misses 4.5:1 on the
+   surface fill, and there is no --ink-65. opacity:1 defeats Firefox's fade. */
+.input::placeholder {
+  color: color-mix(in srgb, var(--color-text) 65%, transparent);
+  opacity: 1;
+}
+.input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+.input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+.input[aria-invalid='true'] { border-color: var(--color-accent-2); }
+
+.inputMono { font-family: var(--font-mono); font-size: 13px; }
+
+.textarea { min-height: 90px; resize: vertical; }
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: calc(var(--radius-md) * 0.75);
+}
+.tagAccent { background: var(--color-accent-100); color: var(--color-accent-800); }
+.tagAccent2 { background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
