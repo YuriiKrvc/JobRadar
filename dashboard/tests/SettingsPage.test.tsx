@@ -181,7 +181,7 @@ describe('unsaved edits across sections', () => {
 
     // The reload must not have reset Profile.
     expect(screen.getByLabelText(/minimum salary/i)).toHaveValue(7000);
-    expect(screen.getByRole('button', { name: /save profile/i })).toBeEnabled();
+    expect(within(screen.getByRole('region', { name: 'Profile & hard filters' })).getByRole('button', { name: /^Save/ })).toBeEnabled();
   });
 
   it('keeps an unsaved rubric weight edit when the CV is saved', async () => {

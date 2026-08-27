@@ -9,9 +9,10 @@ interface Props {
   suggestions?: string[];
   disabled?: boolean;
   help?: string;
+  placeholder?: string;
 }
 
-export function ChipInput({ id, label, value, onChange, suggestions, disabled, help }: Props) {
+export function ChipInput({ id, label, value, onChange, suggestions, disabled, help, placeholder }: Props) {
   const [draft, setDraft] = useState('');
   const [hint, setHint] = useState<string | null>(null);
 
@@ -44,7 +45,7 @@ export function ChipInput({ id, label, value, onChange, suggestions, disabled, h
         {value.map((v) => (
           <li key={v} className={s.chip}>
             {v}
-            <button type="button" aria-label={`Remove ${v}`} disabled={disabled}
+            <button type="button" className={s.buttonBare} aria-label={`Remove ${v}`} disabled={disabled}
               onClick={() => onChange(value.filter((x) => x !== v))}>×</button>
           </li>
         ))}
@@ -52,8 +53,9 @@ export function ChipInput({ id, label, value, onChange, suggestions, disabled, h
       <input
         id={id}
         list={suggestions ? `${id}-suggestions` : undefined}
+        className={`${s.input} ${s.chipInput}`}
         value={draft}
-        placeholder="Type and press Enter"
+        placeholder={placeholder ?? 'Type and press Enter'}
         disabled={disabled}
         onChange={(e) => { setDraft(e.target.value); setHint(null); }}
         onKeyDown={commit}

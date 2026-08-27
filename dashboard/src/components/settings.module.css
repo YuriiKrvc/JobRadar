@@ -30,20 +30,6 @@
 
 .fieldHelp { margin: 0; font-size: 0.8rem; opacity: 0.75; }
 
-/* ChipInput */
-.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; list-style: none; padding: 0; margin: 0; }
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  padding: 0.1rem 0.6rem;
-}
-
-.chip button { border: none; background: none; cursor: pointer; font-size: 1rem; padding: 0; }
-
 /* SourcesTable */
 .table { border-collapse: collapse; width: 100%; }
 
@@ -168,3 +154,91 @@
   line-height: 1.6;
   font-family: var(--font-body);
 }
+
+/* ── Profile ──────────────────────────────────────────────────────────── */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.profileGrid { display: flex; gap: 34px; flex-wrap: wrap; }
+.profileCol { flex: 1; min-width: 290px; }
+.profileAside { width: 250px; flex: none; }
+.profileBlocklists { width: 100%; display: flex; gap: 34px; flex-wrap: wrap; padding-top: 22px; }
+
+/* The blocklist headings ARE their inputs' labels — one string, one node. */
+.profileBlocklists > .profileCol > .field > label {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-text);
+  margin-bottom: 5px;
+}
+
+.groupLabel { display: block; font-size: 12px; margin-bottom: 5px; color: var(--ink-70); }
+
+.toggles { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 7px; }
+.toggle {
+  font-size: 13px;
+  padding: 5px 11px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--ink-70);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+.toggle[aria-pressed='true'] {
+  background: var(--color-accent-100);
+  color: var(--color-accent-800);
+  border-color: var(--color-accent-300);
+}
+
+.chipInput { width: 220px; max-width: 100%; min-height: 32px; font-size: 13px; }
+
+/* The only warning of its kind in the product, and it gets weight to match.
+   Magenta appears exactly twice in JobRadar — here and on a near-miss row. */
+.oneWayDoor {
+  width: 100%;
+  margin-top: var(--space-4);
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 14px 17px;
+  background: var(--color-accent-2-100);
+  border-left: 4px solid var(--color-accent-2);
+}
+.oneWayDoorLabel {
+  flex: none;
+  padding-top: 2px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent-2-800);
+}
+.oneWayDoor p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 66ch;
+  text-wrap: pretty;
+  color: var(--color-accent-2-900);
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 7px; list-style: none; padding: 0; margin: 0 0 7px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  padding: 4px 9px;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+}
+.chip button { color: var(--ink-50); font-size: 14px; line-height: 1; }

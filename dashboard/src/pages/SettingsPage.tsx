@@ -32,7 +32,7 @@ export function SettingsPage() {
         stale instead.
       </p>
 
-      <ProfileForm initial={s.profile} onSaved={settings.reload} />
+      <ProfileForm initial={s.profile} version={s.version} onSaved={settings.reload} />
 
       <SourcesTable />
 
