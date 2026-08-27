@@ -5,21 +5,22 @@ import { RubricEditor } from '../src/components/RubricEditor';
 import * as api from '../src/api/settings';
 
 const WEIGHTS = { coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10 };
+const LABELS = ['Core stack', 'Seniority', 'Domain', 'Logistics', 'Growth'];
 
 beforeEach(() => vi.restoreAllMocks());
 
 function setup() {
   return render(
-    <RubricEditor initialBody="score it" initialWeights={WEIGHTS} onSaved={() => {}} />,
+    <RubricEditor initialBody="score it" initialWeights={WEIGHTS} version={3} onSaved={() => {}} />,
   );
 }
 
 describe('RubricEditor', () => {
   it('renders the prose and every weight', () => {
     setup();
-    expect(screen.getByLabelText(/rubric/i)).toHaveValue('score it');
-    expect(screen.getByLabelText(/coreStack/i)).toHaveValue(35);
-    expect(screen.getByLabelText(/growth/i)).toHaveValue(10);
+    expect(screen.getByLabelText(/scoring instructions/i)).toHaveValue('score it');
+    expect(screen.getByLabelText('Core stack')).toHaveValue(35);
+    expect(screen.getByLabelText('Growth')).toHaveValue(10);
   });
 
   it('shows each weight as a percentage of the total', () => {
@@ -31,7 +32,7 @@ describe('RubricEditor', () => {
 
   it('recomputes percentages live as a weight changes', async () => {
     setup();
-    const core = screen.getByLabelText(/coreStack/i);
+    const core = screen.getByLabelText('Core stack');
 
     await userEvent.clear(core);
     await userEvent.type(core, '135');
@@ -45,38 +46,38 @@ describe('RubricEditor', () => {
     const save = vi.spyOn(api, 'saveRubric').mockResolvedValue(4);
     setup();
 
-    await userEvent.clear(screen.getByLabelText(/coreStack/i));
-    await userEvent.type(screen.getByLabelText(/coreStack/i), '70');
-    await userEvent.click(screen.getByRole('button', { name: /save rubric/i }));
+    await userEvent.clear(screen.getByLabelText('Core stack'));
+    await userEvent.type(screen.getByLabelText('Core stack'), '70');
+    await userEvent.click(screen.getByRole('button', { name: /^Save/ }));
 
     await waitFor(() => expect(save).toHaveBeenCalledWith('score it', { ...WEIGHTS, coreStack: 70 }));
   });
 
   it('disables Save when every weight is zero', async () => {
     setup();
-    for (const key of ['coreStack', 'seniority', 'domain', 'logistics', 'growth']) {
-      const input = screen.getByLabelText(new RegExp(key, 'i'));
+    for (const label of LABELS) {
+      const input = screen.getByLabelText(label);
       await userEvent.clear(input);
       await userEvent.type(input, '0');
     }
-    expect(screen.getByRole('button', { name: /save rubric/i })).toBeDisabled();
-    expect(screen.getByText(/at least one weight/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Save/ })).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/all weights are zero/i);
   });
 
   it('disables Save until something changes', async () => {
     setup();
-    expect(screen.getByRole('button', { name: /save rubric/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Save/ })).toBeDisabled();
 
-    await userEvent.type(screen.getByLabelText(/rubric/i), '!');
-    expect(screen.getByRole('button', { name: /save rubric/i })).toBeEnabled();
+    await userEvent.type(screen.getByLabelText(/scoring instructions/i), '!');
+    expect(screen.getByRole('button', { name: /^Save/ })).toBeEnabled();
   });
 
   it('saves prose and weights together', async () => {
     const save = vi.spyOn(api, 'saveRubric').mockResolvedValue(4);
     setup();
 
-    await userEvent.type(screen.getByLabelText(/rubric/i), ' harder');
-    await userEvent.click(screen.getByRole('button', { name: /save rubric/i }));
+    await userEvent.type(screen.getByLabelText(/scoring instructions/i), ' harder');
+    await userEvent.click(screen.getByRole('button', { name: /^Save/ }));
 
     await waitFor(() => expect(save).toHaveBeenCalledWith('score it harder', WEIGHTS));
   });
@@ -87,8 +88,8 @@ describe('RubricEditor', () => {
     );
     setup();
 
-    await userEvent.type(screen.getByLabelText(/rubric/i), '!');
-    await userEvent.click(screen.getByRole('button', { name: /save rubric/i }));
+    await userEvent.type(screen.getByLabelText(/scoring instructions/i), '!');
+    await userEvent.click(screen.getByRole('button', { name: /^Save/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('above zero');
   });
@@ -100,19 +101,70 @@ describe('RubricEditor', () => {
     );
     setup();
 
-    await userEvent.type(screen.getByLabelText(/rubric/i), '!');
-    await userEvent.click(screen.getByRole('button', { name: /save rubric/i }));
+    await userEvent.type(screen.getByLabelText(/scoring instructions/i), '!');
+    await userEvent.click(screen.getByRole('button', { name: /^Save/ }));
 
-    expect(screen.getByLabelText(/rubric/i)).toBeDisabled();
-    for (const key of ['coreStack', 'seniority', 'domain', 'logistics', 'growth']) {
-      expect(screen.getByLabelText(new RegExp(key, 'i'))).toBeDisabled();
+    expect(screen.getByLabelText(/scoring instructions/i)).toBeDisabled();
+    for (const label of LABELS) {
+      expect(screen.getByLabelText(label)).toBeDisabled();
     }
 
     resolveSave(4);
 
-    await waitFor(() => expect(screen.getByLabelText(/rubric/i)).toBeEnabled());
-    for (const key of ['coreStack', 'seniority', 'domain', 'logistics', 'growth']) {
-      expect(screen.getByLabelText(new RegExp(key, 'i'))).toBeEnabled();
+    await waitFor(() => expect(screen.getByLabelText(/scoring instructions/i)).toBeEnabled());
+    for (const label of LABELS) {
+      expect(screen.getByLabelText(label)).toBeEnabled();
     }
+  });
+
+  it('labels the weights in prose and shows each share of the running sum', () => {
+    render(<RubricEditor initialBody="body" version={3} onSaved={() => {}} initialWeights={{
+      coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10,
+    }} />);
+
+    expect(screen.getByLabelText('Core stack')).toHaveValue(35);
+    expect(screen.getByTestId('pct-coreStack')).toHaveTextContent('35%');
+    expect(screen.getByText(/normalised by their sum \(100\)/)).toBeInTheDocument();
+  });
+
+  it('normalises by the actual sum, not by 100', () => {
+    // 70/40/30/40/20 is the same rubric as 35/20/15/20/10: only ratios matter.
+    render(<RubricEditor initialBody="body" version={3} onSaved={() => {}} initialWeights={{
+      coreStack: 70, seniority: 40, domain: 30, logistics: 40, growth: 20,
+    }} />);
+
+    expect(screen.getByText(/normalised by their sum \(200\)/)).toBeInTheDocument();
+    expect(screen.getByTestId('pct-coreStack')).toHaveTextContent('35%');
+    expect(screen.getByTestId('pct-growth')).toHaveTextContent('10%');
+  });
+
+  it('raises an alert for all-zero weights instead of waiting for the server', () => {
+    render(<RubricEditor initialBody="body" version={3} onSaved={() => {}} initialWeights={{
+      coreStack: 0, seniority: 0, domain: 0, logistics: 0, growth: 0,
+    }} />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'All weights are zero — the rubric would score nothing. Set at least one above zero.',
+    );
+  });
+
+  it('disables Save with its reason rather than accepting a click that does nothing', async () => {
+    // RubricWeightsSchema refuses all-zero weights — dividing by zero would
+    // store NaN as a total. The guard must be visible, not silent.
+    const save = vi.spyOn(api, 'saveRubric').mockResolvedValue(4);
+    render(<RubricEditor initialBody="body" version={3} onSaved={() => {}} initialWeights={{
+      coreStack: 35, seniority: 20, domain: 15, logistics: 20, growth: 10,
+    }} />);
+
+    for (const label of ['Core stack', 'Seniority', 'Domain', 'Logistics', 'Growth']) {
+      const input = screen.getByLabelText(label);
+      await userEvent.clear(input);
+      await userEvent.type(input, '0');
+    }
+
+    const saveButton = screen.getByRole('button', { name: /^Save/ });
+    expect(saveButton).toBeDisabled();
+    await userEvent.click(saveButton);
+    expect(save).not.toHaveBeenCalled();
   });
 });

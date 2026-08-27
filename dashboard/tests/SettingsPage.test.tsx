@@ -189,16 +189,22 @@ describe('unsaved edits across sections', () => {
     render(<Harness />);
     await screen.findByDisplayValue('existing cv');
 
-    const growth = screen.getByLabelText('growth');
+    const growth = screen.getByLabelText('Growth');
     await userEvent.clear(growth);
+    // The controlled input maps an empty field to 0, not null — see
+    // RubricEditor's onChange. Asserting the cleared state before typing
+    // forces the intervening re-render to settle, which is what cured the
+    // clear-then-type flake here.
+    expect(growth).toHaveValue(0);
     await userEvent.type(growth, '99');
+    expect(growth).toHaveValue(99);
 
     const cv = within(screen.getByRole('region', { name: 'CV' }));
     await userEvent.type(cv.getByLabelText(/^cv/i), ' more');
     await userEvent.click(cv.getByRole('button', { name: /^Save/ }));
     await waitFor(() => expect(api.fetchSettings).toHaveBeenCalledTimes(2));
 
-    expect(screen.getByLabelText('growth')).toHaveValue(99);
+    expect(screen.getByLabelText('Growth')).toHaveValue(99);
   });
 
   it('never unmounts the sections during a reload', async () => {

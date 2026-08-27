@@ -49,6 +49,7 @@ export function SettingsPage() {
       <RubricEditor
         initialBody={s.rubricBody}
         initialWeights={s.rubricWeights}
+        version={s.version}
         onSaved={settings.reload}
       />
     </div>

@@ -1,20 +1,26 @@
 import { useEffect, useState } from 'react';
 import { saveRubric } from '../api/settings';
 import { useSave } from '../hooks/useSave';
+import { SettingsSection } from './SettingsSection';
 import type { RubricWeights } from '../api/types';
-import s from './settings.module.css';
+import css from './settings.module.css';
 
-const DIMENSIONS: (keyof RubricWeights)[] = [
-  'coreStack', 'seniority', 'domain', 'logistics', 'growth',
+const DIMENSIONS: [keyof RubricWeights, string][] = [
+  ['coreStack', 'Core stack'],
+  ['seniority', 'Seniority'],
+  ['domain', 'Domain'],
+  ['logistics', 'Logistics'],
+  ['growth', 'Growth'],
 ];
 
 interface Props {
   initialBody: string;
   initialWeights: RubricWeights;
+  version: number;
   onSaved: () => void;
 }
 
-export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
+export function RubricEditor({ initialBody, initialWeights, version, onSaved }: Props) {
   const [body, setBody] = useState(initialBody);
   const [weights, setWeights] = useState<RubricWeights>(initialWeights);
 
@@ -34,62 +40,75 @@ export function RubricEditor({ initialBody, initialWeights, onSaved }: Props) {
     (v) => saveRubric(v.body, v.weights),
   );
 
-  const sum = DIMENSIONS.reduce((a, k) => a + weights[k], 0);
+  const sum = DIMENSIONS.reduce((a, [k]) => a + weights[k], 0);
   const allZero = sum === 0;
   const dirty = body !== initialBody
     || JSON.stringify(weights) !== initialWeightsKey;
 
   return (
-    <section className={s.section}>
-      <h2>Rubric</h2>
-
-      <label htmlFor="rubric">Rubric prose</label>
-      <textarea
-        id="rubric"
-        rows={14}
-        value={body}
-        disabled={save.saving}
-        onChange={(e) => setBody(e.target.value)}
-      />
-
-      {/* Weights are normalised by their actual sum, so they need not total
-          100 — the percentage beside each is what the score actually uses. */}
-      <div className={s.weights}>
-        {DIMENSIONS.map((key) => (
-          <div className={`${s.field} ${s.weight}`} key={key}>
-            <label htmlFor={`w-${key}`}>{key}</label>
-            {/* step={1} so the browser rejects 3.5 in the field rather than
-                letting RubricWeightsSchema.int() turn it into a 400. */}
-            <input
-              id={`w-${key}`} type="number" min={0} max={1000} step={1}
-              value={weights[key]}
-              disabled={save.saving}
-              onChange={(e) => setWeights((w) => ({
-                ...w, [key]: e.target.value === '' ? 0 : Number(e.target.value),
-              }))}
+    <SettingsSection
+      id="rubric" title="Rubric & weights" blurb="How the model is told to judge."
+      version={version}
+      state={{ dirty, saving: save.saving, saved: save.saved, error: save.error }}
+      disabledReason={allZero
+        ? 'All weights are zero — the rubric would score nothing. Set at least one above zero.'
+        : null}
+      onSave={async () => {
+        // RubricWeightsSchema refuses all-zero weights — dividing by zero would
+        // store NaN as a total. The disabled Save button already stops a click
+        // from reaching here; this guard is defense in depth, not the primary
+        // gate — see SettingsSection's disabledReason.
+        if (allZero) return;
+        if (await save.run({ body, weights })) onSaved();
+      }}
+    >
+      <div className={css.rubricGrid}>
+        <div className={css.rubricBody}>
+          <div className={css.field}>
+            <label htmlFor="rubric">Scoring instructions given to the model</label>
+            <textarea
+              id="rubric" className={`${css.input} ${css.rubricArea}`}
+              value={body} spellCheck={false} disabled={save.saving}
+              onChange={(e) => setBody(e.target.value)}
             />
-            <span className={s.pct} data-testid={`pct-${key}`}>
-              {allZero ? '—' : `${Math.round((weights[key] / sum) * 100)}%`}
-            </span>
           </div>
-        ))}
-      </div>
+        </div>
 
-      {allZero && (
-        <p className={s.state}>At least one weight must be above zero.</p>
-      )}
-
-      <div className={s.actions}>
-        <button
-          type="button"
-          disabled={!dirty || allZero || save.saving}
-          onClick={async () => { if (await save.run({ body, weights })) onSaved(); }}
-        >
-          {save.saving ? 'Saving…' : 'Save rubric'}
-        </button>
-        {save.error && <span className={s.state} role="alert">{save.error}</span>}
-        {save.saved && !dirty && <span className={s.state}>Saved</span>}
+        <div className={css.rubricWeights}>
+          {/* The sum is the denominator, not 100 — so the share beside each
+              number is the only honest reading of "35". */}
+          <p className={css.rubricWeightsHead}>
+            Weights — normalised by their sum ({sum}), so only the ratios matter
+          </p>
+          {DIMENSIONS.map(([key, label]) => {
+            const pct = sum === 0 ? 0 : Math.round((weights[key] / sum) * 100);
+            return (
+              <div className={css.rubricWeight} key={key}>
+                <label htmlFor={`w-${key}`}>{label}</label>
+                {/* step={1} so the browser rejects 3.5 in the field rather than
+                    letting RubricWeightsSchema.int() turn it into a 400. */}
+                <input
+                  id={`w-${key}`} className={css.input} type="number" min={0} max={1000} step={1}
+                  value={weights[key]} disabled={save.saving}
+                  onChange={(e) => setWeights((w) => ({
+                    ...w, [key]: e.target.value === '' ? 0 : Number(e.target.value),
+                  }))}
+                />
+                <div className={css.rubricBar}><div style={{ width: `${pct}%` }} /></div>
+                <div className={css.rubricShare} data-testid={`pct-${key}`}>
+                  {allZero ? '—' : `${pct}%`}
+                </div>
+              </div>
+            );
+          })}
+          {allZero && (
+            <p role="alert" className={css.rubricZero}>
+              All weights are zero — the rubric would score nothing. Set at least
+              one above zero.
+            </p>
+          )}
+        </div>
       </div>
-    </section>
+    </SettingsSection>
   );
 }
