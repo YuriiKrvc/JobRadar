@@ -19,6 +19,45 @@ describe('settings client', () => {
     expect(f).toHaveBeenCalledWith('/api/settings', expect.anything());
   });
 
+  it('fills in profile list fields the server omitted', async () => {
+    // A server predating the profile-parse fix returns a v1-shaped blob with no
+    // blocked-word keys at all. Passing that through hands `undefined` to
+    // ChipInput's value.map(), which throws during render and unmounts the whole
+    // dashboard — including the Settings page that is the only way to fix it.
+    const f = ok({
+      cv: 'c', rubricBody: 'r', rubricWeights: WEIGHTS, version: 2, updatedAt: 'x',
+      profile: {
+        excludedLocations: ['Kyiv'], allowedEmploymentTypes: ['full-time'],
+        minSalaryUsd: null, timezone: 'Europe/Kyiv',
+      },
+    });
+
+    const { profile } = await fetchSettings(f);
+
+    expect(profile.blockedTitleWords).toEqual([]);
+    expect(profile.blockedDescriptionWords).toEqual([]);
+    // What the server did send is untouched.
+    expect(profile.excludedLocations).toEqual(['Kyiv']);
+    expect(profile.allowedEmploymentTypes).toEqual(['full-time']);
+    expect(profile.timezone).toBe('Europe/Kyiv');
+  });
+
+  it('leaves a complete profile exactly as the server sent it', async () => {
+    const f = ok({
+      cv: 'c', rubricBody: 'r', rubricWeights: WEIGHTS, version: 2, updatedAt: 'x',
+      profile: {
+        excludedLocations: [], allowedEmploymentTypes: [], minSalaryUsd: 70000,
+        timezone: 'Europe/Kyiv', blockedTitleWords: ['php'], blockedDescriptionWords: ['on-site'],
+      },
+    });
+
+    const { profile } = await fetchSettings(f);
+
+    expect(profile.blockedTitleWords).toEqual(['php']);
+    expect(profile.blockedDescriptionWords).toEqual(['on-site']);
+    expect(profile.minSalaryUsd).toBe(70000);
+  });
+
   it('PUTs the cv and returns the new version', async () => {
     const f = ok({ version: 5 });
     expect(await saveCv('new cv', f)).toBe(5);

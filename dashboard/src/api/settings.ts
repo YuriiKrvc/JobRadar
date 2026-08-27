@@ -3,8 +3,36 @@ import type {
   ProfileInput, RubricWeights, SettingsResponse, SourceInput, SourceRow,
 } from './types';
 
-export function fetchSettings(fetchFn: typeof fetch = fetch): Promise<SettingsResponse> {
-  return getJson<SettingsResponse>('/api/settings', fetchFn);
+/**
+ * The profile's four list fields, defaulted where the server omitted one.
+ *
+ * `ProfileSchema` gives every list a `.default([])`, so an API that parses on
+ * the read path always sends them. An API that does not — a v1 profile blob
+ * served by a build predating that fix — sends a shorter object, and the
+ * missing key reaches `ChipInput`'s `value.map()`, throws during render, and
+ * unmounts the entire dashboard: including the Settings page that is the only
+ * place to repair the configuration. A missing key must degrade to an empty
+ * list, never to a white screen.
+ *
+ * This is a boundary guard, not a parser. It fills absent lists and leaves
+ * everything the server did send exactly as it arrived.
+ */
+function withProfileDefaults(res: SettingsResponse): SettingsResponse {
+  const p = res.profile ?? ({} as ProfileInput);
+  return {
+    ...res,
+    profile: {
+      ...p,
+      excludedLocations: p.excludedLocations ?? [],
+      allowedEmploymentTypes: p.allowedEmploymentTypes ?? [],
+      blockedTitleWords: p.blockedTitleWords ?? [],
+      blockedDescriptionWords: p.blockedDescriptionWords ?? [],
+    },
+  };
+}
+
+export async function fetchSettings(fetchFn: typeof fetch = fetch): Promise<SettingsResponse> {
+  return withProfileDefaults(await getJson<SettingsResponse>('/api/settings', fetchFn));
 }
 
 export async function saveCv(cv: string, fetchFn: typeof fetch = fetch): Promise<number> {
