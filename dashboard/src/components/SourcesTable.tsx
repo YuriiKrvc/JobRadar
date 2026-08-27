@@ -5,7 +5,7 @@ import { useSave } from '../hooks/useSave';
 import { SettingsSection } from './SettingsSection';
 import { SourceForm } from './SourceForm';
 import type { SourceInput, SourceRow } from '../api/types';
-import s from './settings.module.css';
+import css from './settings.module.css';
 
 function toInput(r: SourceRow): SourceInput {
   return {
@@ -30,6 +30,18 @@ export function SourcesTable({ version }: Props) {
   const edit = useSave<{ id: string; input: SourceInput }>(({ id, input }) => updateSource(id, input));
   const mutate = useSave<() => Promise<unknown>>((fn) => fn());
 
+  // `add` and `edit` are single component-level instances shared by every row
+  // and by the add form. Neither `useSave` clears its error on unmount, so a
+  // failed save otherwise follows the form to whatever opens next — the blank
+  // add form after "Cancel new source", or a different row's edit form. Every
+  // path that moves `open` to a new target goes through this so the next form
+  // always opens clean.
+  function openTarget(next: Open) {
+    add.reset();
+    edit.reset();
+    setOpen(next);
+  }
+
   return (
     <SettingsSection
       id="sources" title="Sources" blurb="Boards polled every 30 minutes."
@@ -39,54 +51,54 @@ export function SourcesTable({ version }: Props) {
       note="Sources save as you go and do not change the scoring version."
       state={{ dirty: false, saving: false, saved: false, error: null }}
     >
-      {sources.error && <p className={s.state} role="alert">Error: {sources.error}</p>}
+      {sources.error && <p className={css.state} role="alert">Error: {sources.error}</p>}
       {sources.data?.length === 0 && (
-        <p className={s.state}>No sources configured — add one below.</p>
+        <p className={css.state}>No sources configured — add one below.</p>
       )}
 
-      <table className={s.table}>
+      <table className={css.table}>
         <thead>
           <tr>
-            <th className={s.colOn}>On</th>
-            <th className={s.colName}>Name</th>
+            <th className={css.colOn}>On</th>
+            <th className={css.colName}>Name</th>
             <th>Listing URL</th>
-            <th className={s.colEdit} />
-            <th className={s.colDelete} />
+            <th className={css.colEdit} />
+            <th className={css.colDelete} />
           </tr>
         </thead>
         <tbody>
           {(sources.data ?? []).map((r) => (
             <Fragment key={r.id}>
-              <tr className={[r.enabled ? '' : s.rowDisabled, open === r.id ? s.rowEditing : ''].filter(Boolean).join(' ') || undefined}>
+              <tr className={[r.enabled ? '' : css.rowDisabled, open === r.id ? css.rowEditing : ''].filter(Boolean).join(' ') || undefined}>
                 <td>
                   <button
-                    type="button" className={s.switch} role="switch"
+                    type="button" className={css.switch} role="switch"
                     aria-checked={r.enabled} aria-label={`Enable ${r.name}`}
                     onClick={async () => {
                       if (await mutate.run(() => toggleSource(r.id, !r.enabled))) sources.reload();
                     }}
                   >
-                    <span className={s.switchKnob} />
+                    <span className={css.switchKnob} />
                   </button>
                 </td>
-                <td className={s.sourceName}>{r.name}</td>
-                <td className={s.sourceUrl}>{r.url}</td>
+                <td className={css.sourceName}>{r.name}</td>
+                <td className={css.sourceUrl}>{r.url}</td>
                 <td>
-                  <button type="button" className={`${s.buttonBare} ${s.linkCyan}`}
+                  <button type="button" className={`${css.buttonBare} ${css.linkCyan}`}
                     aria-expanded={open === r.id}
-                    onClick={() => setOpen(open === r.id ? null : r.id)}>
+                    onClick={() => openTarget(open === r.id ? null : r.id)}>
                     {open === r.id ? 'Close' : 'Edit'}
                   </button>
                 </td>
                 <td>
-                  <button type="button" className={`${s.buttonBare} ${s.linkMagenta}`} onClick={async () => {
+                  <button type="button" className={`${css.buttonBare} ${css.linkMagenta}`} onClick={async () => {
                     if (await mutate.run(() => deleteSource(r.id))) {
                       // Only clear `open` when the deleted row was the one
                       // being edited — an unconditional clear here would
                       // discard an unrelated row's in-progress draft, which
                       // this file otherwise never does except on explicit
                       // close or a successful save.
-                      if (open === r.id) setOpen(null);
+                      if (open === r.id) openTarget(null);
                       sources.reload();
                     }
                   }}>Delete</button>
@@ -95,7 +107,7 @@ export function SourcesTable({ version }: Props) {
 
               {open === r.id && (
                 <tr>
-                  <td colSpan={5} className={s.formCell}>
+                  <td colSpan={5} className={css.formCell}>
                     <SourceForm
                       // Remount on identity change so the draft is re-seeded
                       // from the row the user actually clicked.
@@ -105,12 +117,12 @@ export function SourcesTable({ version }: Props) {
                       submitLabel="Save this source"
                       saving={edit.saving}
                       error={edit.error}
-                      onCancel={() => setOpen(null)}
+                      onCancel={() => openTarget(null)}
                       onSubmit={async (input) => {
                         // Close only on success: a rejected save must keep the
                         // form and the user's typing.
                         if (await edit.run({ id: r.id, input })) {
-                          setOpen(null);
+                          openTarget(null);
                           sources.reload();
                         }
                       }}
@@ -122,17 +134,17 @@ export function SourcesTable({ version }: Props) {
           ))}
 
           <tr>
-            <td colSpan={5} className={s.addCell}>
-              <button type="button" className={`${s.buttonBare} ${s.addLine}`}
+            <td colSpan={5} className={css.addCell}>
+              <button type="button" className={`${css.buttonBare} ${css.addLine}`}
                 aria-expanded={open === 'new'}
-                onClick={() => setOpen(open === 'new' ? null : 'new')}>
+                onClick={() => openTarget(open === 'new' ? null : 'new')}>
                 {open === 'new' ? 'Cancel new source' : '+ Add a source'}
               </button>
             </td>
           </tr>
           {open === 'new' && (
             <tr>
-              <td colSpan={5} className={s.formCell}>
+              <td colSpan={5} className={css.formCell}>
                 {/* The same component as the edit form above, so the two can
                     never drift apart. */}
                 <SourceForm
@@ -140,10 +152,10 @@ export function SourcesTable({ version }: Props) {
                   submitLabel="Add source"
                   saving={add.saving}
                   error={add.error}
-                  onCancel={() => setOpen(null)}
+                  onCancel={() => openTarget(null)}
                   onSubmit={async (input) => {
                     if (await add.run(input)) {
-                      setOpen(null);
+                      openTarget(null);
                       sources.reload();
                     }
                   }}
@@ -154,7 +166,7 @@ export function SourcesTable({ version }: Props) {
         </tbody>
       </table>
 
-      {mutate.error && <p className={s.state} role="alert">{mutate.error}</p>}
+      {mutate.error && <p className={css.inlineNote} role="alert">{mutate.error}</p>}
     </SettingsSection>
   );
 }

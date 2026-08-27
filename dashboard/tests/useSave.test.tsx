@@ -46,4 +46,20 @@ describe('useSave', () => {
     await act(async () => { await result.current.run('b'); });
     expect(result.current.error).toBeNull();
   });
+
+  it('reset clears error and saved without running a save', async () => {
+    const save = vi.fn(async () => { throw new Error('nope'); });
+    const { result } = renderHook(() => useSave(save));
+
+    await act(async () => { await result.current.run('a'); });
+    expect(result.current.error).toBe('nope');
+
+    act(() => { result.current.reset(); });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.saved).toBe(false);
+    expect(result.current.saving).toBe(false);
+    // reset does not itself call the save function again.
+    expect(save).toHaveBeenCalledTimes(1);
+  });
 });

@@ -2,6 +2,15 @@ import { useCallback, useRef, useState } from 'react';
 
 export interface SaveState<T> {
   run: (value: T) => Promise<boolean>;
+  /**
+   * Clears a previous error/saved flag without running a save. `run` already
+   * clears `error` at the *start* of the next call, but a component-level
+   * `useSave` instance that gets reused for a different target — a form that
+   * closes and reopens on another row, say — has no "next call" until the
+   * user submits again. Without `reset`, a stale error from the last target
+   * follows the form to the next one.
+   */
+  reset: () => void;
   saving: boolean;
   error: string | null;
   saved: boolean;
@@ -39,5 +48,11 @@ export function useSave<T>(save: (value: T) => Promise<unknown>): SaveState<T> {
     }
   }, []);
 
-  return { run, saving, error, saved };
+  const reset = useCallback(() => {
+    setSaving(false);
+    setError(null);
+    setSaved(false);
+  }, []);
+
+  return { run, reset, saving, error, saved };
 }

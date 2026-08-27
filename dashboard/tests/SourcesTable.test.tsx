@@ -203,6 +203,43 @@ it('has no Save button of its own: sources are written as you go', async () => {
     .toBeInTheDocument();
 });
 
+it('does not carry a failed save into the next form the user opens', async () => {
+  // Repro 1: fail the add form, cancel, reopen it — the blank form must not
+  // show the previous attempt's collision alert.
+  mockFetch([ROW], () => json({ message: 'Another source already uses that name' }, 409));
+  render(<SourcesTable version={3} />);
+
+  await userEvent.click(await screen.findByRole('button', { name: '+ Add a source' }));
+  await fillRequired();
+  await userEvent.click(screen.getByRole('button', { name: 'Add source' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Another source already uses that name');
+
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel new source' }));
+  await userEvent.click(screen.getByRole('button', { name: '+ Add a source' }));
+
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(screen.getByLabelText('Name')).not.toHaveAttribute('aria-invalid', 'true');
+});
+
+it("does not carry one row's failed save into a different row's edit form", async () => {
+  // Repro 2: fail Acme's edit, close, open Beta's edit — Beta's form must not
+  // show Acme's collision alert against Beta's (fine) Name field.
+  mockFetch([ROW, ROW_B], () => json({ message: 'Another source already uses that name' }, 409));
+  render(<SourcesTable version={3} />);
+
+  const edits = await screen.findAllByRole('button', { name: 'Edit' });
+  await userEvent.click(edits[0]!);
+  await userEvent.click(screen.getByRole('button', { name: 'Save this source' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Another source already uses that name');
+
+  await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+  await userEvent.click(screen.getAllByRole('button', { name: 'Edit' })[1]!);
+
+  expect(screen.getByText('Editing Beta')).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(screen.getByLabelText('Name')).not.toHaveAttribute('aria-invalid', 'true');
+});
+
 it("deleting one row does not discard an unrelated row's open edit form", async () => {
   const fetchFn = mockFetch([ROW, ROW_B], (url, init) => {
     if (url === '/api/sources/u1' && init?.method === 'DELETE') return new Response(null, { status: 204 });
