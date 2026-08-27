@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { ChipInput } from './ChipInput';
 import type { Selectors, SourceInput } from '../api/types';
+import css from './settings.module.css';
+import s from './SourceForm.module.css';
 
 interface Props {
   initial?: SourceInput;
+  formTitle: string;
   submitLabel: string;
   saving: boolean;
   error: string | null;
@@ -16,34 +19,82 @@ const EMPTY: SourceInput = {
   blockedTitleWords: [], blockedDescriptionWords: [],
 };
 
-// Labelled and ordered as the user reads the page: the two required structural
-// selectors first, then the fields they can leave to the fallbacks.
-const SELECTOR_FIELDS: { key: keyof Selectors; label: string; help: string }[] = [
-  { key: 'item', label: 'Item (required)', help: 'Each posting block on the listing page, e.g. li.opening' },
-  { key: 'link', label: 'Link (required)', help: 'The link inside a block whose address is the posting, e.g. a.job-title' },
-  { key: 'title', label: 'Title', help: 'Leave empty to use the link text, which is usually right.' },
-  { key: 'company', label: 'Company', help: 'Leave empty to use the source name above.' },
-  { key: 'location', label: 'Location', help: 'Optional. Feeds the excluded-locations filter.' },
-  { key: 'employmentType', label: 'Employment type', help: 'Optional. Feeds the allowed-employment-types filter.' },
-  { key: 'description', label: 'Snippet on the listing page', help: 'Optional. A short summary if the board shows one.' },
-  {
-    key: 'detail', label: 'Description container (posting page)',
-    help: 'Strongly recommended. Left empty, the whole posting page becomes the '
-      + 'description — navigation, footers and any salary widget included. A '
-      + 'board\'s own salary filter can then trip the minimum-salary rule and get '
-      + 'good postings rejected.',
-  },
+interface FieldDef {
+  key: 'name' | 'url' | keyof Selectors;
+  label: string;
+  required: boolean;
+  mono: boolean;
+  width: string;
+  placeholder: string;
+  /** Two clauses: what it matches, and what happens if it is left blank. */
+  help: string;
+}
+
+const FIELDS: FieldDef[] = [
+  { key: 'name', label: 'Name', required: true, mono: false, width: '190px', placeholder: 'Acme',
+    help: 'Unique. Becomes the posting’s source label and the name in the health panel.' },
+  { key: 'url', label: 'Listing URL', required: true, mono: false, width: '330px', placeholder: 'https://acme.com/careers',
+    help: 'Unique. The page that lists the openings — fetched every tick.' },
+  { key: 'item', label: 'Item', required: true, mono: true, width: '250px', placeholder: 'li.job-post',
+    help: 'Selects each posting block on the listing page. Everything below is read inside one block.' },
+  { key: 'link', label: 'Link', required: true, mono: true, width: '250px', placeholder: 'a[href*="/jobs/"]',
+    help: 'The anchor inside the block whose href is the posting URL.' },
+  { key: 'title', label: 'Title', required: false, mono: true, width: '230px', placeholder: 'h3',
+    help: 'Read inside the item block. Absent: the link’s own text is used.' },
+  { key: 'company', label: 'Company', required: false, mono: true, width: '230px', placeholder: '.company',
+    help: 'Read inside the item block. Absent: the source’s Name is used.' },
+  { key: 'location', label: 'Location', required: false, mono: true, width: '230px', placeholder: '.location',
+    help: 'Read inside the item block. Absent: the posting shows no location.' },
+  { key: 'employmentType', label: 'Employment type', required: false, mono: true, width: '230px', placeholder: '.job-type',
+    help: 'Feeds the employment-type hard filter. Absent: that filter cannot reject this source.' },
+  { key: 'description', label: 'Description', required: false, mono: true, width: '230px', placeholder: '.job-summary',
+    help: 'Read on the listing page, if the blurb is there. Absent: the posting has no snippet until it is hydrated.' },
+  // Longer than the design's one-liner on purpose: an empty value feeds the
+  // whole page to the salary filter, and a board's own salary widget then
+  // rejects good postings. That cost real debugging time.
+  { key: 'detail', label: 'Description container', required: false, mono: true, width: '270px', placeholder: 'main .job-body',
+    help: 'Read on the posting’s own page, not the listing. Absent: the whole page is used — navigation, footers and any salary widget included, and a board’s own salary filter can then trip the minimum-salary rule and reject good postings.' },
 ];
 
-export function SourceForm({ initial, submitLabel, saving, error, onSubmit, onCancel }: Props) {
-  const [draft, setDraft] = useState<SourceInput>(initial ?? EMPTY);
+const REQUIRED = FIELDS.filter((f) => f.required);
+const OPTIONAL = FIELDS.filter((f) => !f.required);
 
-  function setSelector(key: keyof Selectors, value: string) {
-    setDraft((d) => ({ ...d, selectors: { ...d.selectors, [key]: value } }));
+const OPTIONAL_LABEL = 'Six optional selectors — title, company, location, '
+  + 'employment type, description, description container';
+
+export function SourceForm({ initial, formTitle, submitLabel, saving, error, onSubmit, onCancel }: Props) {
+  const [draft, setDraft] = useState<SourceInput>(initial ?? EMPTY);
+  // Open from the start when an existing source already uses one of them:
+  // hiding the field that needs repairing behind a line is exactly the case
+  // the disclosure must not create.
+  const [optionalOpen, setOptionalOpen] = useState(
+    OPTIONAL.some((f) => ((initial?.selectors[f.key as keyof Selectors] ?? '') !== '')),
+  );
+
+  function valueOf(f: FieldDef): string {
+    if (f.key === 'name') return draft.name;
+    if (f.key === 'url') return draft.url;
+    return draft.selectors[f.key as keyof Selectors] ?? '';
   }
 
-  const complete = draft.name.trim() !== '' && draft.url.trim() !== ''
-    && draft.selectors.item.trim() !== '' && draft.selectors.link.trim() !== '';
+  function setValue(f: FieldDef, value: string) {
+    if (f.key === 'name') return setDraft((d) => ({ ...d, name: value }));
+    if (f.key === 'url') return setDraft((d) => ({ ...d, url: value }));
+    setDraft((d) => ({ ...d, selectors: { ...d.selectors, [f.key]: value } }));
+  }
+
+  // The backend distinguishes the two unique constraints by constraint_name and
+  // says which one collided; map that sentence back onto the field so the
+  // failure is marked where it happened, not only at the top of the form.
+  // Anchored on the controller's exact sentences (sources.controller.ts), not
+  // a bare /name/ or /url/ match — those would also fire on any unrelated
+  // error whose text happens to contain the word.
+  const collided = error === null ? null
+    : error.includes('Another source already uses that name') ? 'name'
+    : error.includes('Another source already uses that URL') ? 'url'
+    : null;
+
+  const missing = REQUIRED.filter((f) => valueOf(f).trim() === '').map((f) => f.label);
 
   function submit() {
     // A blank optional selector must be absent, not '': the backend's
@@ -54,67 +105,90 @@ export function SourceForm({ initial, submitLabel, saving, error, onSubmit, onCa
     onSubmit({ ...draft, name: draft.name.trim(), url: draft.url.trim(), selectors });
   }
 
+  function renderField(f: FieldDef) {
+    const invalid = collided === f.key;
+    return (
+      <div className={f.required ? `${css.field} ${s.field} ${s.required}` : `${css.field} ${s.field}`} key={f.key} style={{ width: f.width }}>
+        <label htmlFor={`src-${f.key}`}>{f.label}</label>
+        <input
+          id={`src-${f.key}`}
+          className={f.mono ? `${css.input} ${css.inputMono}` : css.input}
+          value={valueOf(f)}
+          placeholder={f.placeholder}
+          aria-invalid={invalid || undefined}
+          aria-required={f.required || undefined}
+          disabled={saving}
+          onChange={(e) => setValue(f, e.target.value)}
+        />
+        <p className={s.help}>{f.help}</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="source-form">
-      <div className="field">
-        <label htmlFor="source-name">Name</label>
-        <p className="field-help">
-          The company or board. Shown on every posting from this source and in the
-          source filter, so make it recognisable. Must be unique.
+    <div className={s.form}>
+      <div className={s.head}>
+        <h4>{formTitle}</h4>
+        <p>
+          Every field below except Name and Listing URL is a CSS selector, read
+          against the page it names. Copy them from devtools.
         </p>
-        <input id="source-name" value={draft.name} disabled={saving}
-          onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
       </div>
 
-      <div className="field">
-        <label htmlFor="source-url">Listing URL</label>
-        <p className="field-help">
-          The page that lists the jobs, with any filters you want already applied.
-          Fetched every run to spot new postings.
-        </p>
-        <input id="source-url" value={draft.url} disabled={saving}
-          onChange={(e) => setDraft((d) => ({ ...d, url: e.target.value }))} />
-      </div>
+      <h6 className={s.group}>Required</h6>
+      <div className={s.fields}>{REQUIRED.map(renderField)}</div>
 
-      <fieldset className="selectors">
-        <legend>Selectors</legend>
-        <p className="field-help">
-          CSS selectors read from the listing page's HTML. Only static HTML is
-          parsed — a board that renders its jobs with JavaScript will find nothing,
-          whatever you put here.
-        </p>
-        {SELECTOR_FIELDS.map((f) => (
-          <div className="field" key={f.key}>
-            <label htmlFor={`sel-${f.key}`}>{f.label}</label>
-            <p className="field-help">{f.help}</p>
-            <input id={`sel-${f.key}`} value={draft.selectors[f.key] ?? ''} disabled={saving}
-              onChange={(e) => setSelector(f.key, e.target.value)} />
+      <button
+        type="button" className={`${css.buttonBare} ${s.disclosure}`}
+        aria-expanded={optionalOpen}
+        onClick={() => setOptionalOpen((o) => !o)}
+      >
+        {optionalOpen ? 'Hide the six optional selectors' : OPTIONAL_LABEL}
+      </button>
+
+      {optionalOpen && (
+        <div className={s.optional}>
+          <h6 className={s.group}>Optional — each has a sensible fallback</h6>
+          <div className={s.fields}>{OPTIONAL.map(renderField)}</div>
+
+          <div className={s.blocklists}>
+            <ChipInput
+              id="source-title-words" label="Blocked words — titles, for this source only"
+              value={draft.blockedTitleWords} disabled={saving}
+              placeholder="Add, then Enter"
+              onChange={(v) => setDraft((d) => ({ ...d, blockedTitleWords: v }))}
+            />
+            <ChipInput
+              id="source-desc-words" label="Blocked words — descriptions, for this source only"
+              value={draft.blockedDescriptionWords} disabled={saving}
+              placeholder="Add, then Enter"
+              onChange={(v) => setDraft((d) => ({ ...d, blockedDescriptionWords: v }))}
+            />
           </div>
-        ))}
-      </fieldset>
+          <p className={s.blocklistsNote}>
+            These are added to the global blocklists in Profile for this source —
+            they never subtract from them.
+          </p>
+        </div>
+      )}
 
-      <ChipInput
-        id="source-title-words" label="Blocked words — titles (this source)"
-        help="Extra blocked title words for this board only, added to the global list in Profile. Type a word and press Enter."
-        value={draft.blockedTitleWords} disabled={saving}
-        onChange={(v) => setDraft((d) => ({ ...d, blockedTitleWords: v }))}
-      />
+      {error && (
+        <div role="alert" className={s.error}>
+          {error} Nothing was saved and your values are still here — try again.
+        </div>
+      )}
 
-      <ChipInput
-        id="source-desc-words" label="Blocked words — descriptions (this source)"
-        help="Extra blocked description words for this board only, added to the global list in Profile. Type a word and press Enter."
-        value={draft.blockedDescriptionWords} disabled={saving}
-        onChange={(v) => setDraft((d) => ({ ...d, blockedDescriptionWords: v }))}
-      />
-
-      <div className="settings-actions">
-        <button type="button" disabled={!complete || saving} onClick={submit}>
+      <div className={s.actions}>
+        <button type="button" className={`${css.button} ${css.buttonPrimary}`} disabled={missing.length > 0 || saving} onClick={submit}>
           {saving ? 'Saving…' : submitLabel}
         </button>
         {onCancel && (
-          <button type="button" disabled={saving} onClick={onCancel}>Cancel</button>
+          <button type="button" className={`${css.button} ${css.buttonSecondary}`} disabled={saving} onClick={onCancel}>Cancel</button>
         )}
-        {error && <span className="state" role="alert">{error}</span>}
+        {/* Never a disabled button with no explanation. */}
+        {missing.length > 0 && (
+          <p className={s.missing}>Still needed: {missing.join(', ')}</p>
+        )}
       </div>
     </div>
   );

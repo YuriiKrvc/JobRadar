@@ -69,6 +69,7 @@ export function SourcesTable() {
                           // from the row the user actually clicked.
                           key={r.id}
                           initial={toInput(r)}
+                          formTitle={`Editing ${r.name}`}
                           submitLabel="Save source"
                           saving={edit.saving}
                           error={edit.error}
@@ -93,6 +94,7 @@ export function SourcesTable() {
 
       <h3>Add a source</h3>
       <SourceForm
+        formTitle="New source"
         submitLabel="Add source"
         saving={add.saving}
         error={add.error}

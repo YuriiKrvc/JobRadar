@@ -1,0 +1,67 @@
+.form { padding: 18px 20px; background: var(--color-surface); }
+
+.head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.head h4 { margin: 0; font-size: 17px; }
+.head p { margin: 0; font-size: 12.5px; max-width: 60ch; text-wrap: pretty; color: var(--ink-62); }
+
+.group {
+  margin: 18px 0 10px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-50);
+}
+
+.fields { display: flex; flex-wrap: wrap; gap: 18px 22px; }
+.field { margin: 0; }
+.help {
+  margin: 5px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  max-width: 44ch;
+  text-wrap: pretty;
+  color: var(--ink-62);
+}
+
+/* Generated content, not a text node: a "*" inside the label would make the
+   field's accessible name "Name *" and break exact label queries. */
+.required > label::after { content: ' *'; color: var(--color-accent-2-700); }
+
+.disclosure {
+  margin-top: var(--space-4);
+  font-size: 13px;
+  color: var(--color-accent-700);
+  border-bottom: 1px solid currentColor;
+}
+
+.optional { padding-top: 16px; }
+
+.blocklists { display: flex; gap: 30px; flex-wrap: wrap; padding-top: 20px; }
+.blocklists > div { flex: 1; min-width: 280px; }
+.blocklistsNote {
+  margin: 11px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  max-width: 70ch;
+  text-wrap: pretty;
+  color: var(--ink-62);
+}
+
+.error {
+  margin-top: 18px;
+  padding: 11px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  background: var(--color-accent-2-100);
+  color: var(--color-accent-2-800);
+}
+
+.actions { display: flex; align-items: center; gap: 12px; margin-top: var(--space-4); flex-wrap: wrap; }
+/* Never a disabled button with no explanation. */
+.missing { margin: 0; font-size: 12.5px; color: var(--ink-55); }
+
+/* The blocklist chips sit on the panel's surface fill, so they need the
+   paper ground to stay legible against it. ChipInput's chip class is scoped
+   to settings.module.css and not selectable from here, so this reaches the
+   chip <li> by its stable ul > li structure instead. */
+.blocklists ul > li { background: var(--color-bg); }
