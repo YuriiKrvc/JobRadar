@@ -53,10 +53,10 @@ the same terms.
 ## Profile: two conflicts resolved against the mock
 
 The mock renders four fixed employment-type toggle buttons with
-`aria-pressed`. `ProfileSchema` types `employmentTypes` as `string[]`, not an
+`aria-pressed`. `ProfileSchema` types `allowedEmploymentTypes` as `string[]`, not an
 enum, so a fixed set of four buttons would silently drop any value outside
-them on the next save — a real loss for something like `b2b`, which some
-users already have in the field today. `ProfileForm.tsx` keeps the four known
+them on the next save — a real loss for something like `b2b`, a value the
+schema allows but the mock's four toggles don't name. `ProfileForm.tsx` keeps the four known
 values (full-time, part-time, contract, internship) as `aria-pressed` toggles,
 renders any other stored value as a removable chip beside them, and keeps an
 add input for a fifth value the toggles don't name. The mock's shape, without
