@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react';
 import { addSource, deleteSource, fetchSources, toggleSource, updateSource } from '../api/settings';
 import { useApi } from '../hooks/useApi';
 import { useSave } from '../hooks/useSave';
+import { SettingsSection } from './SettingsSection';
 import { SourceForm } from './SourceForm';
 import type { SourceInput, SourceRow } from '../api/types';
 import s from './settings.module.css';
@@ -14,93 +15,141 @@ function toInput(r: SourceRow): SourceInput {
   };
 }
 
-export function SourcesTable() {
+interface Props {
+  version: number;
+}
+
+/** 'new' is the add row; a uuid is the row being edited; null is closed. */
+type Open = string | 'new' | null;
+
+export function SourcesTable({ version }: Props) {
   const sources = useApi(() => fetchSources());
-  const [editing, setEditing] = useState<string | null>(null);
+  const [open, setOpen] = useState<Open>(null);
 
   const add = useSave<SourceInput>(addSource);
   const edit = useSave<{ id: string; input: SourceInput }>(({ id, input }) => updateSource(id, input));
   const mutate = useSave<() => Promise<unknown>>((fn) => fn());
 
   return (
-    <section className={s.section}>
-      <h2>Sources</h2>
-
+    <SettingsSection
+      id="sources" title="Sources" blurb="Boards polled every 30 minutes."
+      version={version}
+      // Sources has nothing to save: every row write is its own request, and
+      // none of them bumps the scoring version.
+      note="Sources save as you go and do not change the scoring version."
+      state={{ dirty: false, saving: false, saved: false, error: null }}
+    >
       {sources.error && <p className={s.state} role="alert">Error: {sources.error}</p>}
+      {sources.data?.length === 0 && (
+        <p className={s.state}>No sources configured — add one below.</p>
+      )}
 
-      {sources.data?.length === 0
-        ? <p className={s.state}>No sources configured — add one below.</p>
-        : (
-          <table className={s.table}>
-            <thead>
-              <tr><th>On</th><th>Name</th><th>URL</th><th /><th /></tr>
-            </thead>
-            <tbody>
-              {(sources.data ?? []).map((r) => (
-                <Fragment key={r.id}>
-                  <tr className={r.enabled ? undefined : s.rowDisabled}>
-                    <td>
-                      <input
-                        type="checkbox" checked={r.enabled}
-                        aria-label={`Enable ${r.name}`}
-                        onChange={async () => {
-                          if (await mutate.run(() => toggleSource(r.id, !r.enabled))) sources.reload();
-                        }}
-                      />
-                    </td>
-                    <td>{r.name}</td>
-                    <td>{r.url}</td>
-                    <td>
-                      <button type="button" onClick={() => setEditing(editing === r.id ? null : r.id)}>
-                        Edit
-                      </button>
-                    </td>
-                    <td>
-                      <button type="button" onClick={async () => {
-                        if (await mutate.run(() => deleteSource(r.id))) sources.reload();
-                      }}>Delete</button>
-                    </td>
-                  </tr>
-                  {editing === r.id && (
-                    <tr>
-                      <td colSpan={5}>
-                        <SourceForm
-                          // Remount on identity change so the draft is re-seeded
-                          // from the row the user actually clicked.
-                          key={r.id}
-                          initial={toInput(r)}
-                          formTitle={`Editing ${r.name}`}
-                          submitLabel="Save source"
-                          saving={edit.saving}
-                          error={edit.error}
-                          onCancel={() => setEditing(null)}
-                          onSubmit={async (input) => {
-                            // Close only on success: a rejected save must keep
-                            // the form and the user's typing.
-                            if (await edit.run({ id: r.id, input })) {
-                              setEditing(null);
-                              sources.reload();
-                            }
-                          }}
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        )}
+      <table className={s.table}>
+        <thead>
+          <tr>
+            <th className={s.colOn}>On</th>
+            <th className={s.colName}>Name</th>
+            <th>Listing URL</th>
+            <th className={s.colEdit} />
+            <th className={s.colDelete} />
+          </tr>
+        </thead>
+        <tbody>
+          {(sources.data ?? []).map((r) => (
+            <Fragment key={r.id}>
+              <tr className={[r.enabled ? '' : s.rowDisabled, open === r.id ? s.rowEditing : ''].filter(Boolean).join(' ') || undefined}>
+                <td>
+                  <button
+                    type="button" className={s.switch} role="switch"
+                    aria-checked={r.enabled} aria-label={`Enable ${r.name}`}
+                    onClick={async () => {
+                      if (await mutate.run(() => toggleSource(r.id, !r.enabled))) sources.reload();
+                    }}
+                  >
+                    <span className={s.switchKnob} />
+                  </button>
+                </td>
+                <td className={s.sourceName}>{r.name}</td>
+                <td className={s.sourceUrl}>{r.url}</td>
+                <td>
+                  <button type="button" className={`${s.buttonBare} ${s.linkCyan}`}
+                    aria-expanded={open === r.id}
+                    onClick={() => setOpen(open === r.id ? null : r.id)}>
+                    {open === r.id ? 'Close' : 'Edit'}
+                  </button>
+                </td>
+                <td>
+                  <button type="button" className={`${s.buttonBare} ${s.linkMagenta}`} onClick={async () => {
+                    if (await mutate.run(() => deleteSource(r.id))) {
+                      setOpen(null);
+                      sources.reload();
+                    }
+                  }}>Delete</button>
+                </td>
+              </tr>
 
-      <h3>Add a source</h3>
-      <SourceForm
-        formTitle="New source"
-        submitLabel="Add source"
-        saving={add.saving}
-        error={add.error}
-        onSubmit={async (input) => { if (await add.run(input)) sources.reload(); }}
-      />
+              {open === r.id && (
+                <tr>
+                  <td colSpan={5} className={s.formCell}>
+                    <SourceForm
+                      // Remount on identity change so the draft is re-seeded
+                      // from the row the user actually clicked.
+                      key={r.id}
+                      initial={toInput(r)}
+                      formTitle={`Editing ${r.name}`}
+                      submitLabel="Save this source"
+                      saving={edit.saving}
+                      error={edit.error}
+                      onCancel={() => setOpen(null)}
+                      onSubmit={async (input) => {
+                        // Close only on success: a rejected save must keep the
+                        // form and the user's typing.
+                        if (await edit.run({ id: r.id, input })) {
+                          setOpen(null);
+                          sources.reload();
+                        }
+                      }}
+                    />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          ))}
+
+          <tr>
+            <td colSpan={5} className={s.addCell}>
+              <button type="button" className={`${s.buttonBare} ${s.addLine}`}
+                aria-expanded={open === 'new'}
+                onClick={() => setOpen(open === 'new' ? null : 'new')}>
+                {open === 'new' ? 'Cancel new source' : '+ Add a source'}
+              </button>
+            </td>
+          </tr>
+          {open === 'new' && (
+            <tr>
+              <td colSpan={5} className={s.formCell}>
+                {/* The same component as the edit form above, so the two can
+                    never drift apart. */}
+                <SourceForm
+                  formTitle="New source"
+                  submitLabel="Add source"
+                  saving={add.saving}
+                  error={add.error}
+                  onCancel={() => setOpen(null)}
+                  onSubmit={async (input) => {
+                    if (await add.run(input)) {
+                      setOpen(null);
+                      sources.reload();
+                    }
+                  }}
+                />
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+
       {mutate.error && <p className={s.state} role="alert">{mutate.error}</p>}
-    </section>
+    </SettingsSection>
   );
 }

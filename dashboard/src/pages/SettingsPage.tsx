@@ -34,7 +34,7 @@ export function SettingsPage() {
 
       <ProfileForm initial={s.profile} version={s.version} onSaved={settings.reload} />
 
-      <SourcesTable />
+      <SourcesTable version={s.version} />
 
       <DocumentEditor
         id="cv"
