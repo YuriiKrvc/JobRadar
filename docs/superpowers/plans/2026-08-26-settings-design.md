@@ -1099,6 +1099,24 @@ They are `Another source already uses that name` and `Another source already use
 
 Port the test file wholesale: `git show 96423c2:dashboard/tests/SourceForm.test.tsx` is the reviewed version and covers the disclosure, the gated submit's reason line, both collision cases, the unrelated-error case, `aria-required`, and the blank-selector stripping. Add `formTitle="New source"` to renders that lack it, and keep all three blank-selector tests — including the one for a selector the user *clears*, which is the case that actually bit: the backend's `SelectorsSchema` puts `.min(1)` on every value it receives, so `detail: ''` turns a routine re-tune into a 400.
 
+`SourceForm`'s `formTitle` is required, and `SourcesTable` does not pass it until Task 6 — so add it to both existing call sites here, or the branch goes red on `tsc` and the suite between the two tasks. In `dashboard/src/components/SourcesTable.tsx`:
+
+```tsx
+                        <SourceForm
+                          key={r.id}
+                          initial={toInput(r)}
+                          formTitle={`Editing ${r.name}`}
+                          submitLabel="Save source"
+```
+
+```tsx
+      <SourceForm
+        formTitle="New source"
+        submitLabel="Add source"
+```
+
+Task 6 rewrites this file wholesale; these two lines are scaffolding to keep every commit green.
+
 In `dashboard/tests/SourcesTable.test.tsx`, update the helper to the new labels:
 
 ```tsx
