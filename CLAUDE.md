@@ -312,19 +312,33 @@ argument**. No hidden clock is what makes day bucketing testable. The masthead's
 "N new" comes from the same `groupByDay` call the feed uses, so the two cannot
 disagree.
 
-Presentation is CSS Modules over one global token file. `src/styles/tokens.css`
-is the **only** file permitted to define `:root` custom properties or style bare
-element selectors; everything else is a `*.module.css` beside its component.
-The Settings surface shares one scoped `components/settings.module.css` rather
-than five near-identical modules — `section`, `actions`, `field` and `state`
-mean the same thing in each, and duplicating them would be the old global sheet
-under a new name. `dashboard/tsconfig.json` must keep `vite/client` in its
-`types` array or CSS-module imports stop typechecking.
+Styling is CSS Modules over one global token file. `src/styles/tokens.css` is
+the only place that may define `:root` custom properties or style bare element
+selectors; every component carries a sibling `Foo.module.css`.
+`components/settings.module.css` is the Settings surface's shared vocabulary —
+`field`, `actions`, `state`, the control styles — while `SettingsSection` and
+`SourceForm` take their own modules, because folding their layout into the
+shared file would recreate the global stylesheet under a new name. The legacy
+`src/styles.css` is gone. Two values in the port are measured rather than
+chosen and must not be "tidied": the placeholder colour at 65% ink with
+`opacity: 1` (the browser default misses 4.5:1 on the surface fill, and
+Firefox fades placeholders further), and the button font-size at 14px to match
+the input beside it. Each settings section renders as `role="region"` named by
+its heading — with four buttons reading "Save" on one page, the region is what
+disambiguates them, for a screen reader and for the tests alike. Under Vitest,
+CSS Modules resolve through a proxy returning the key, so assertions compare
+against the imported binding, never an authored class string.
+`dashboard/tsconfig.json` must keep `vite/client` in its `types` array or
+CSS-module imports stop typechecking.
 
-The Settings page has four sections (CV, profile, sources, rubric), each with
-its own dirty-tracked Save button and its own error state, matching the three
-separate document `PUT`s — that is what makes "one version bump per save" fall
-out of the design instead of needing diff logic.
+The Settings tab has four sections (CV, profile, sources, rubric). CV, profile
+and rubric each have their own dirty-tracked Save button and their own error
+state, matching the three separate document `PUT`s — that is what makes "one
+version bump per save" fall out of the design instead of needing diff logic.
+**Sources is the exception**: each row write (`POST`, `PUT`, `PATCH`, `DELETE`)
+is its own immediate request and none of them bumps `app_settings.version`, so
+the section renders the same header with no dirty chip and no Save button. A
+Save button there would imply a batch write that does not exist.
 
 Settings state is owned by `App`, not by `SettingsPage`, so the Postings page's
 stale-score badge sees a save immediately and changing route does not refetch.
