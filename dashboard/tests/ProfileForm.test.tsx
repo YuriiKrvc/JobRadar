@@ -141,6 +141,7 @@ describe('ProfileForm', () => {
   });
 
   it('toggles a known employment type on and off with aria-pressed', async () => {
+    const save = vi.spyOn(api, 'saveProfile').mockResolvedValue(4);
     render(<ProfileForm initial={{ ...BASE, allowedEmploymentTypes: ['full-time'] }} version={1} onSaved={() => {}} />);
 
     expect(screen.getByRole('button', { name: 'full-time' })).toHaveAttribute('aria-pressed', 'true');
@@ -149,6 +150,32 @@ describe('ProfileForm', () => {
 
     await userEvent.click(contract);
     expect(screen.getByRole('button', { name: 'contract' })).toHaveAttribute('aria-pressed', 'true');
+
+    // Off path: a seeded-on toggle must flip back to false and its value
+    // must actually leave allowedEmploymentTypes on save, not just visually
+    // un-press.
+    const fullTime = screen.getByRole('button', { name: 'full-time' });
+    await userEvent.click(fullTime);
+    expect(screen.getByRole('button', { name: 'full-time' })).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.click(screen.getByRole('button', { name: /^Save/ }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ allowedEmploymentTypes: ['contract'] }),
+    ));
+  });
+
+  it('removes a custom employment-type chip and drops it from the saved value', async () => {
+    const save = vi.spyOn(api, 'saveProfile').mockResolvedValue(4);
+    render(<ProfileForm initial={{ ...BASE, allowedEmploymentTypes: ['full-time', 'b2b'] }} version={1} onSaved={() => {}} />);
+
+    expect(screen.getByText('b2b')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Remove b2b' }));
+    expect(screen.queryByText('b2b')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /^Save/ }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ allowedEmploymentTypes: ['full-time'] }),
+    ));
   });
 
   it('gives the employment-type toggles a real accessible group name', () => {
