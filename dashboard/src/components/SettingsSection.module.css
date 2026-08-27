@@ -2,13 +2,6 @@
    the page stays an open broadsheet. */
 .section { padding: var(--space-6) 0 0; }
 
-.head {
-  display: flex;
-  align-items: baseline;
-  gap: 13px;
-  flex-wrap: wrap;
-}
-
 .title { font-size: 26px; margin: 0; }
 
 .blurb {
@@ -25,15 +18,11 @@
 
 .rule { height: 1px; margin-top: 11px; background: var(--ink-20); }
 
-.error {
-  margin-top: 13px;
-  padding: 11px 14px;
-  font-size: 13.5px;
-  line-height: 1.5;
-  background: var(--color-accent-2-100);
-  color: var(--color-accent-2-800);
-}
+/* The shared treatment — padding, colour, type — lives in settings.module.css;
+   this is only the offset that differs from SourceForm's. */
+.error { margin-top: 13px; }
 
-/* Every section wraps its fields in this, so the gap under the rule is one
-   value rather than four. */
+/* SettingsSection itself wraps every section's children in this — see
+   SettingsSection.tsx — so the gap under the rule is one value rather than
+   four, and no section can forget to apply it. */
 .body { padding-top: 17px; }

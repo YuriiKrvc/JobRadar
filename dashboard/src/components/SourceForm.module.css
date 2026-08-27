@@ -1,7 +1,9 @@
 .form { padding: 18px 20px; background: var(--color-surface); }
 
-.head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
-.head h4 { margin: 0; font-size: 17px; }
+/* The shared display/align-items/gap treatment lives in settings.module.css;
+   this is only the offset SettingsSection's header does not need. */
+.head { margin-bottom: 4px; }
+.head h3 { margin: 0; font-size: 17px; }
 .head p { margin: 0; font-size: 12.5px; max-width: 60ch; text-wrap: pretty; color: var(--ink-62); }
 
 .group {
@@ -47,14 +49,9 @@
   color: var(--ink-62);
 }
 
-.error {
-  margin-top: 18px;
-  padding: 11px 14px;
-  font-size: 13.5px;
-  line-height: 1.5;
-  background: var(--color-accent-2-100);
-  color: var(--color-accent-2-800);
-}
+/* The shared treatment lives in settings.module.css; this is only the offset
+   that differs from SettingsSection's. */
+.error { margin-top: 18px; }
 
 .actions { display: flex; align-items: center; gap: 12px; margin-top: var(--space-4); flex-wrap: wrap; }
 /* Never a disabled button with no explanation. */

@@ -127,15 +127,19 @@ export function SourceForm({ initial, formTitle, submitLabel, saving, error, onS
 
   return (
     <div className={s.form}>
-      <div className={s.head}>
-        <h4>{formTitle}</h4>
+      <div className={`${css.head} ${s.head}`}>
+        <h3>{formTitle}</h3>
         <p>
           Every field below except Name and Listing URL is a CSS selector, read
           against the page it names. Copy them from devtools.
         </p>
       </div>
 
-      <h6 className={s.group}>Required</h6>
+      {/* A group label, not a heading — it names a subset of the same form's
+          fields, not a new section, and the outline must not skip h4/h5 to
+          get here. Same non-heading-label pattern as ProfileForm's
+          .groupLabel, with .group's own visual treatment kept identical. */}
+      <p className={s.group}>Required</p>
       <div className={s.fields}>{REQUIRED.map(renderField)}</div>
 
       <button
@@ -148,7 +152,7 @@ export function SourceForm({ initial, formTitle, submitLabel, saving, error, onS
 
       {optionalOpen && (
         <div className={s.optional}>
-          <h6 className={s.group}>Optional — each has a sensible fallback</h6>
+          <p className={s.group}>Optional — each has a sensible fallback</p>
           <div className={s.fields}>{OPTIONAL.map(renderField)}</div>
 
           <div className={s.blocklists}>
@@ -173,7 +177,7 @@ export function SourceForm({ initial, formTitle, submitLabel, saving, error, onS
       )}
 
       {error && (
-        <div role="alert" className={s.error}>
+        <div role="alert" className={`${css.error} ${s.error}`}>
           {error} Nothing was saved and your values are still here — try again.
         </div>
       )}

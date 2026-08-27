@@ -120,7 +120,7 @@ export function ProfileForm({ initial, version, onSaved }: Props) {
               onChange={(e) => { setTypeDraft(e.target.value); setTypeHint(null); }}
               onKeyDown={commitEmployment}
             />
-            {typeHint && <p className={css.state} role="status">{typeHint}</p>}
+            {typeHint && <p className={css.inlineNote} role="status">{typeHint}</p>}
           </div>
         </div>
 

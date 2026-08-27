@@ -1,18 +1,17 @@
 import { useState, type KeyboardEvent } from 'react';
-import s from './settings.module.css';
+import css from './settings.module.css';
 
 interface Props {
   id: string;
   label: string;
   value: string[];
   onChange: (next: string[]) => void;
-  suggestions?: string[];
   disabled?: boolean;
   help?: string;
   placeholder?: string;
 }
 
-export function ChipInput({ id, label, value, onChange, suggestions, disabled, help, placeholder }: Props) {
+export function ChipInput({ id, label, value, onChange, disabled, help, placeholder }: Props) {
   const [draft, setDraft] = useState('');
   const [hint, setHint] = useState<string | null>(null);
 
@@ -38,34 +37,28 @@ export function ChipInput({ id, label, value, onChange, suggestions, disabled, h
   }
 
   return (
-    <div className={s.field}>
+    <div className={css.field}>
       <label htmlFor={id}>{label}</label>
-      {help && <p className={s.fieldHelp}>{help}</p>}
-      <ul className={s.chips}>
+      {help && <p className={css.fieldHelp}>{help}</p>}
+      <ul className={css.chips}>
         {value.map((v) => (
-          <li key={v} className={s.chip}>
+          <li key={v} className={css.chip}>
             {v}
-            <button type="button" className={s.buttonBare} aria-label={`Remove ${v}`} disabled={disabled}
+            <button type="button" className={css.buttonBare} aria-label={`Remove ${v}`} disabled={disabled}
               onClick={() => onChange(value.filter((x) => x !== v))}>×</button>
           </li>
         ))}
       </ul>
       <input
         id={id}
-        list={suggestions ? `${id}-suggestions` : undefined}
-        className={`${s.input} ${s.chipInput}`}
+        className={`${css.input} ${css.chipInput}`}
         value={draft}
         placeholder={placeholder ?? 'Type and press Enter'}
         disabled={disabled}
         onChange={(e) => { setDraft(e.target.value); setHint(null); }}
         onKeyDown={commit}
       />
-      {hint && <p className={s.state} role="status">{hint}</p>}
-      {suggestions && (
-        <datalist id={`${id}-suggestions`}>
-          {suggestions.map((s) => <option key={s} value={s} />)}
-        </datalist>
-      )}
+      {hint && <p className={css.inlineNote} role="status">{hint}</p>}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import shared from './settings.module.css';
+import css from './settings.module.css';
 import s from './SettingsSection.module.css';
 
 export interface SectionState {
@@ -36,20 +36,20 @@ export function SettingsSection(
 
   return (
     <section className={s.section} aria-labelledby={`${id}-title`}>
-      <div className={s.head}>
+      <div className={css.head}>
         <h2 id={`${id}-title`} className={s.title}>{title}</h2>
         <p className={s.blurb}>{blurb}</p>
 
         {onSave && dirty && !saving && (
-          <span className={`${shared.tag} ${shared.tagAccent2}`}>● Unsaved</span>
+          <span className={`${css.tag} ${css.tagAccent2}`}>● Unsaved</span>
         )}
         {onSave && saved && !dirty && !saving && (
-          <span className={`${shared.tag} ${shared.tagAccent}`}>✓ Saved · v{version}</span>
+          <span className={`${css.tag} ${css.tagAccent}`}>✓ Saved · v{version}</span>
         )}
         {onSave && (
           <button
             type="button"
-            className={`${shared.button} ${shared.buttonPrimary} ${s.save}`}
+            className={`${css.button} ${css.buttonPrimary} ${s.save}`}
             disabled={!dirty || saving || blocked}
             onClick={onSave}
           >
@@ -64,13 +64,13 @@ export function SettingsSection(
       <div className={s.rule} />
 
       {error && (
-        <div role="alert" className={s.error}>
+        <div role="alert" className={`${css.error} ${s.error}`}>
           <strong>Save failed.</strong> {error} Nothing was written and your edits
           are still here — try again.
         </div>
       )}
 
-      {children}
+      <div className={s.body}>{children}</div>
     </section>
   );
 }
