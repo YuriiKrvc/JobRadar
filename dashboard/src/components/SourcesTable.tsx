@@ -81,7 +81,12 @@ export function SourcesTable({ version }: Props) {
                 <td>
                   <button type="button" className={`${s.buttonBare} ${s.linkMagenta}`} onClick={async () => {
                     if (await mutate.run(() => deleteSource(r.id))) {
-                      setOpen(null);
+                      // Only clear `open` when the deleted row was the one
+                      // being edited — an unconditional clear here would
+                      // discard an unrelated row's in-progress draft, which
+                      // this file otherwise never does except on explicit
+                      // close or a successful save.
+                      if (open === r.id) setOpen(null);
                       sources.reload();
                     }
                   }}>Delete</button>

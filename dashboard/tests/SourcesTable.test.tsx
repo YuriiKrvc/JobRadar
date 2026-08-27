@@ -10,6 +10,13 @@ const ROW = {
   enabled: true, createdAt: '2026-01-01T00:00:00Z',
 };
 
+const ROW_B = {
+  id: 'u2', name: 'Beta', url: 'https://beta.com/careers',
+  selectors: { item: 'li.job', link: 'a.l' },
+  blockedTitleWords: [], blockedDescriptionWords: [],
+  enabled: true, createdAt: '2026-01-01T00:00:00Z',
+};
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status, headers: { 'content-type': 'application/json' },
@@ -194,4 +201,33 @@ it('has no Save button of its own: sources are written as you go', async () => {
   expect(region.queryByRole('button', { name: /^Save$/ })).toBeNull();
   expect(region.getByText('Sources save as you go and do not change the scoring version.'))
     .toBeInTheDocument();
+});
+
+it("deleting one row does not discard an unrelated row's open edit form", async () => {
+  const fetchFn = mockFetch([ROW, ROW_B], (url, init) => {
+    if (url === '/api/sources/u1' && init?.method === 'DELETE') return new Response(null, { status: 204 });
+    return json({});
+  });
+  render(<SourcesTable version={3} />);
+
+  // Open Beta's (the second row's) edit form and start typing a draft.
+  const edits = await screen.findAllByRole('button', { name: 'Edit' });
+  await userEvent.click(edits[1]!);
+  expect(screen.getByText('Editing Beta')).toBeInTheDocument();
+
+  const name = screen.getByLabelText('Name');
+  await userEvent.clear(name);
+  await userEvent.type(name, 'Beta Draft');
+
+  // Delete Acme (the first, unrelated row).
+  const deletes = screen.getAllByRole('button', { name: 'Delete' });
+  await userEvent.click(deletes[0]!);
+
+  await waitFor(() => expect(fetchFn).toHaveBeenCalledWith(
+    '/api/sources/u1', expect.objectContaining({ method: 'DELETE' }),
+  ));
+
+  // Beta's form must still be open with the typed draft intact.
+  expect(screen.getByText('Editing Beta')).toBeInTheDocument();
+  expect(screen.getByLabelText('Name')).toHaveValue('Beta Draft');
 });
