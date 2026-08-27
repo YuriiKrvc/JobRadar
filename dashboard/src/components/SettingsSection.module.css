@@ -1,0 +1,28 @@
+/* Sections are separated by whitespace and one hairline, never by cards:
+   the page stays an open broadsheet. */
+.section { padding: var(--space-6) 0 0; }
+
+.title { font-size: 26px; margin: 0; }
+
+.blurb {
+  margin: 0;
+  flex: 1;
+  min-width: 180px;
+  font-size: 12.5px;
+  color: var(--ink-50);
+}
+
+.save { margin-left: auto; }
+
+.note { margin: 6px 0 0; font-size: 12.5px; color: var(--ink-55); }
+
+.rule { height: 1px; margin-top: 11px; background: var(--ink-20); }
+
+/* The shared treatment — padding, colour, type — lives in settings.module.css;
+   this is only the offset that differs from SourceForm's. */
+.error { margin-top: 13px; }
+
+/* SettingsSection itself wraps every section's children in this — see
+   SettingsSection.tsx — so the gap under the rule is one value rather than
+   four, and no section can forget to apply it. */
+.body { padding-top: 17px; }
