@@ -167,4 +167,19 @@ describe('RubricEditor', () => {
     await userEvent.click(saveButton);
     expect(save).not.toHaveBeenCalled();
   });
+
+  it('states the disabled reason distinctly from the alert, not as a repeat of it', () => {
+    // Two altitudes, two strings: the role="alert" says what is wrong with
+    // the rubric; SettingsSection's note says why Save will not move. If
+    // they ever converge back to one sentence, a sighted user sees it twice.
+    render(<RubricEditor initialBody="body" version={3} onSaved={() => {}} initialWeights={{
+      coreStack: 0, seniority: 0, domain: 0, logistics: 0, growth: 0,
+    }} />);
+
+    const alertText = screen.getByRole('alert').textContent;
+    const note = screen.getByText('All weights are zero — set at least one above zero to save.');
+
+    expect(note).toBeInTheDocument();
+    expect(note.textContent).not.toBe(alertText);
+  });
 });

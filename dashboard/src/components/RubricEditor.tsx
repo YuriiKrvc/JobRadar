@@ -51,7 +51,7 @@ export function RubricEditor({ initialBody, initialWeights, version, onSaved }: 
       version={version}
       state={{ dirty, saving: save.saving, saved: save.saved, error: save.error }}
       disabledReason={allZero
-        ? 'All weights are zero — the rubric would score nothing. Set at least one above zero.'
+        ? 'All weights are zero — set at least one above zero to save.'
         : null}
       onSave={async () => {
         // RubricWeightsSchema refuses all-zero weights — dividing by zero would
